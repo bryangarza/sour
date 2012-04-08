@@ -93,7 +93,7 @@ do
             ;;
         -n | --nodel)
             nodel=true
-            log ':: nodel found as true, images wll be found in shots subdir'
+            log ':: nodel found as true, images will be found in shots subdir'
             shift
             ;;
         -d | --download)
