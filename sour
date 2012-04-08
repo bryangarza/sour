@@ -184,7 +184,7 @@ if [[ $nodel == false ]]; then
     log ":: deleted $largeimagelocation $smallimagelocation"
 fi
 
-logdestfile="/home/prole/sour/$(date +"%m-%d-%y").log"
+logdestfile="/home/prole/sour/logs/$(date +"%m-%d-%y").log"
 echo -e "$datestamp: $largeimageurl $largeimagedel $smallimageurl $smallimagedel" >> "$logdestfile"
 log ":: wrote to log at $logdestfile..."
 
