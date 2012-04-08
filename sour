@@ -25,7 +25,8 @@ usage:
     -e, --existing {PATH}   don't scrot; use image in {PATH}
 
 -options must be used separately (i.e.: "-s -f", not "-sf")
--register for your own key at http://imgur.com/register/api_anon
+-register for your own key at http://imgur.com/register/api_anon,
+    then edit the key file
 EOF
 }
 
