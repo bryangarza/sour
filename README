@@ -26,6 +26,6 @@ usage:
     -o, --out               send URL/s to stdout instead of xclip
     -p, --prefix "MSG: "    result is "MSG: URL" (not compatible with -t or -f)
 
--options must be used separately (i.e.: "-s -f", not "-sf")
--register for your own key at http://imgur.com/register/api_anon,
-    then edit the key file
+- options must be used separately (i.e.: "-s -f", not "-sf")
+- you can register for your own key at http://imgur.com/register/api_anon
+    (don't forget to edit sour/key!)
