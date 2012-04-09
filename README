@@ -1,0 +1,13 @@
+Sour is a script that automates uploading of screenshots.
+
+You can use sour to:
+    - Take a screenshot -> upload -> paste somewhere
+    - Take a screenshot -> make thumbnail -> upload -> paste somewhere
+    - Automate posting to forums, BBCode automagically added
+    - Use an existing image (either from a URL, or a filepath)
+    - Review logs of all past uploads (and the URLs needed to delete any image)
+
+sour makes uploading of screenshots seamless and painless.
+
+Use 'sour --help' to see all options, and feel free to register for your own
+Imgur API key.
