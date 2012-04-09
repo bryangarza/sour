@@ -16,7 +16,6 @@ sour: upload to imgur faster
 usage:
     -h, --help              help
     -v, --verbose           verbose output
-    -q, --quiet             suppres output, even errors (useful with weechat's /shell script)
     -s, --select            select area (does scrot -s)
     -f, --forum             BBCode format for forums (uses [url=...] and a thumbnail)
     -t, --thumb             also make thumbnail (included as part of -f)
@@ -40,16 +39,9 @@ function log {
     fi
 }
 
-function out {
-    if [[ $_quiet -eq 0 ]]; then
-        echo "$@"
-    fi
-}
-
 result=''
 thumb=false
 _verbose=0
-_quiet=0
 forum=false
 select=false
 nodel=false
@@ -66,10 +58,6 @@ do
         -h | --help | -\?)
             usage
             exit 0
-            ;;
-        -q | --quiet)
-            _quiet=1
-            shift
             ;;
         -v | --verbose)
             _verbose=1
@@ -129,7 +117,7 @@ done
 
 location="/home/$USER/sour/shots"
 if [[ ! -d "$location" ]]; then
-    out "No directory $location... creating"
+    log "No directory $location... creating"
 fi
 
 datestamp=$(date +"%F_%H-%M-%S")
@@ -190,13 +178,13 @@ echo -e "$datestamp: $largeimageurl $largeimagedel $smallimageurl $smallimagedel
 log ":: wrote to log at $logdestfile..."
 
 if [[ ${#largeimageurl} -gt 45 || ${#largeimageurl} -eq 0 ]]; then
-    out "Something went wrong with largeimageurl! Check the logs at $logdestfile" >&2
+    log "Something went wrong with largeimageurl! Check the logs at $logdestfile" >&2
     log ":: largeimageurl = $largeimageurl"
     log ':: exiting due to error!'
 fi
 if [[ $thumb == true ]]; then
     if [[ ${#smallimageurl} -gt 45 || ${#smallimageurl} -eq 0 ]]; then
-        out "Something went wrong with smallimageurl! Check the logs at $logdestfile" >&2
+        log "Something went wrong with smallimageurl! Check the logs at $logdestfile" >&2
         log ":: smallimageurl = $smallimageurl"
         log ':: exiting due to error!'
     fi
