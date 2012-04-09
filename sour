@@ -21,9 +21,11 @@ usage:
 EOF
 }
 
+# Declared first so logging can be done.
 _verbose=0
 _debug=0
 
+# ALL logs are written to this file, regardless of what the user inputs.
 masterlogfile="/home/$USER/sour/logs/master.log"
 
 function log {
@@ -40,7 +42,6 @@ function log_debug {
     echo -e "[d] $@" >> "$masterlogfile"
 }
 
-result=''
 thumb=false
 forum=false
 select=false
@@ -153,6 +154,7 @@ else
     log "Using existing directory $location"
 fi
 
+# The datestamp forms the base of the rest of the filenames.
 datestamp=$(date +"%F_%H-%M-%S")
 log "datestamp created as $datestamp"
 largeimagelocation="$location/$datestamp.png"
@@ -194,6 +196,7 @@ largeimageresponse=$(upload $largeimagelocation)
 log 'uploaded large image to imgur'
 log_debug "response was\n$largeimageresponse"
 
+# If there are no errors, then $errorcheck == ''
 errorcheck=$(echo $largeimageresponse | sed -r 's/.*<error>(.*)<\/error>.*/\1/')
 if [[ ! -z "$errorcheck" ]]; then
     log 'error found!'
@@ -272,6 +275,7 @@ elif [[ $thumb == true ]]; then
         echo "Full Size: $largeimageurl... Thumbnail: $smallimageurl"
     fi
 else
+    # The prefix is equal to '' if it was not changed by the user.
     if [[ $sendtostdout == false ]]; then
         echo "${prefix}${largeimageurl}" | xclip
         log 'sent output (one image) to xclip, use middle mouse button to paste'
