@@ -1,14 +1,5 @@
 #!/bin/bash
 
-keyfile="/home/$USER/sour/key"
-if [[ -e "$keyfile" ]]; then
-    source /home/$USER/sour/key
-else
-    echo "$keyfile does not exist! exiting..." >&2
-    exit 1
-fi
-
-
 function usage {
 cat <<EOF
 sour: upload to imgur faster
@@ -20,8 +11,11 @@ usage:
     -f, --forum             BBCode format for forums (uses [url=...] and a thumbnail)
     -t, --thumb             also make thumbnail (included as part of -f)
     -n, --nodel             don't delete images when done
-    -d, --download {URL}    don't scrot; download {URL} instead
+    -u, --url {URL}         don't scrot; download {URL} instead
     -e, --existing {PATH}   don't scrot; use image in {PATH}
+    -d, --debug             more output (includes -v)
+    -o, --out               send URL/s to stdout instead of xclip
+    -p, --prefix "MSG: "    result is "MSG: URL" (not compatible with -t or -f)
 
 -options must be used separately (i.e.: "-s -f", not "-sf")
 -register for your own key at http://imgur.com/register/api_anon,
@@ -29,24 +23,34 @@ usage:
 EOF
 }
 
-function upload {
-    curl -s -F "image=@$1" -F "key=$key" http://imgur.com/api/upload.xml
-}
+_verbose=0
+_debug=0
+
+masterlogfile="/home/$USER/sour/logs/master.log"
 
 function log {
     if [[ $_verbose -eq 1 ]]; then
-        echo "$@"
+        echo -e "[v] $@"
     fi
+    echo -e "[v] $@" >> "$masterlogfile"
+}
+
+function log_debug {
+    if [[ $_debug -eq 1 ]]; then
+        echo -e "[d] $@"
+    fi
+    echo -e "[d] $@" >> "$masterlogfile"
 }
 
 result=''
 thumb=false
-_verbose=0
 forum=false
 select=false
 nodel=false
 download=false
 existing=false
+sendtostdout=false
+prefix=''
 largeimageurl=''
 largeimagedel=''
 smallimageurl=''
@@ -61,51 +65,67 @@ do
             ;;
         -v | --verbose)
             _verbose=1
-            log ':: verbose on'
+            log 'verbose on'
+            shift
+            ;;
+        -d | --debug)
+            _verbose=1
+            _debug=1
+            log 'debugging (& verbose) on'
             shift
             ;;
         -t | --thumb)
             thumb=true
-            log ':: thumbnail flag on'
+            log 'thumbnail flag on'
             shift
             ;;
         -f | --forum)
             forum=true
-            log ':: forum flag detected... expect BBCode'
+            log 'forum flag detected... expect BBCode'
             shift
             ;;
         -s | --select)
             select=true
-            log ':: -s for scrot on'
+            log '-s for scrot on'
             shift
             ;;
         -n | --nodel)
             nodel=true
-            log ':: nodel found as true, images will be found in shots subdir'
+            log 'nodel found as true, images will be found in shots subdir'
             shift
             ;;
-        -d | --download)
+        -u | --url)
             download=true
             downloadsource="$2"
-            log ":: found download source as $downloadsource"
+            log "found download source as $downloadsource"
             shift 2
             ;;
         -e | --existing)
             existing=true
             existingsource="$2"
-            log ":: found filepath of existing image at $existingsource"
+            log "found filepath of existing image at $existingsource"
+            shift 2
+            ;;
+        -o | --out)
+            sendtostdout=true
+            log 'sending to stdout instead'
+            shift
+            ;;
+        -p | --prefix)
+            prefix="$2"
+            log "using prefix $prefix"
             shift 2
             ;;
         --)
             shift
-            log ':: end of options... breaking...'
+            log 'end of options... breaking...'
             break
             ;;
         -*)
             if [[ $quiet == false ]]; then
                 echo "sour: Unknown option (ignored): $1" >&2
             fi
-            log ':: please see sour --help'
+            log 'please see sour --help'
             shift
             ;;
         *)
@@ -115,92 +135,151 @@ do
     esac
 done
 
+keyfile="/home/$USER/sour/key"
+if [[ -e "$keyfile" ]]; then
+    source /home/$USER/sour/key
+    log "$keyfile exists and was sourced"
+else
+    log ":: $keyfile does not exist! exiting..." >&2
+    exit 1
+fi
+
+function upload {
+    curl -s -F "image=@$1" -F "key=$key" http://imgur.com/api/upload.xml
+}
+
 location="/home/$USER/sour/shots"
 if [[ ! -d "$location" ]]; then
     log "No directory $location... creating"
+else
+    log "Using existing directory $location"
 fi
 
 datestamp=$(date +"%F_%H-%M-%S")
-log ":: datestamp created as $datestamp"
-log ":: location created as $location"
+log "datestamp created as $datestamp"
 largeimagelocation="$location/$datestamp.png"
-log ":: filename of large image is $largeimagelocation"
+log "filename of large image is $largeimagelocation"
 
 if [[ $download == false && $existing == false ]]; then
     if [[ $select == true ]]; then
         scrot -s $largeimagelocation
-        log ':: took scrot -s'
+        log 'took scrot -s'
     else
         scrot $largeimagelocation
-        log ':: took scrot'
+        log 'took scrot'
     fi
+
 elif [[ $download == true ]]; then
     curl $downloadsource -o $largeimagelocation
-    log ":: downloaded $downloadsource to $largeimagelocation"
+    log "downloaded $downloadsource to $largeimagelocation"
 elif [[ $existing == true ]]; then
     cp $existingsource $largeimagelocation
-    log ":: copied existing image $existingsource to $largeimagelocation"
+    log "copied existing image $existingsource to $largeimagelocation"
 fi
 
+# Have to check that files exists first, small one may not.
+function removefiles {
+    if [[ $nodel == false ]]; then
+        log 'removing files'
+        if [[ -e $largeimagelocation ]]; then
+            rm $largeimagelocation
+            log "deleted $largeimagelocation"
+        fi
+        if [[ -e $smallimagelocation ]]; then
+            rm $smallimagelocation
+            log "deleted $smallimagelocation"
+        fi
+    fi
+}
+
 largeimageresponse=$(upload $largeimagelocation)
-log ':: uploaded large image to imgur'
+log 'uploaded large image to imgur'
+log_debug "response was\n$largeimageresponse"
+
+errorcheck=$(echo $largeimageresponse | sed -r 's/.*<error>(.*)<\/error>.*/\1/')
+if [[ ! -z "$errorcheck" ]]; then
+    log 'error found!'
+    log_debug "error found was\n$errorcheck"
+    log 'see logs/master.log'
+    log 'cleaning up and exiting...'
+    removefiles
+    echo '' | xclip
+    exit 1
+else
+    log 'no errors found'
+fi
 
 largeimageurl=$(echo $largeimageresponse | sed -r 's/.*<original_image>(.*)<\/original_image>.*/\1/')
-log ":: parsed for largeimageresponse... $largeimageurl"
+log "parsed for largeimageresponse... $largeimageurl"
 
 largeimagedel=$(echo $largeimageresponse | sed -r 's/.*<delete_page>(.*)<\/delete_page>.*/\1/')
-log ":: parsed for largeimagedel... $largeimagedel"
+log "parsed for largeimagedel... $largeimagedel"
 
 if [[ $thumb == true || $forum == true ]]; then
     smallimagelocation="$location/$datestamp-small.png"
-    log ":: filename of the thumbnail small image is $smallimagelocation"
+    log "filename of the thumbnail small image is $smallimagelocation"
     cp $largeimagelocation $smallimagelocation
-    log ":: copied the original image $largeimagelocation to $smallimagelocation"
+    log "copied the original image $largeimagelocation to $smallimagelocation"
     mogrify -path $location -resize 250x250 $smallimagelocation
-    log ":: using mogrify on $smallimagelocation"
+    log "using mogrify on $smallimagelocation"
     smallimageresponse=$(upload $smallimagelocation)
-    log ':: uploaded small thumbnail to imgur'
+    log 'uploaded small thumbnail to imgur'
+    log_debug "response was\n$smallimageresponse"
 
     smallimageurl=$(echo $smallimageresponse | sed -r 's/.*<original_image>(.*)<\/original_image>.*/\1/')
-    log ":: parsed for smallimageresponse... $smallimageurl"
+    log "parsed for smallimageresponse... $smallimageurl"
 
     smallimagedel=$(echo $smallimageresponse | sed -r 's/.*<delete_page>(.*)<\/delete_page>.*/\1/')
-    log ":: parsed for smallimagedel... $smallimagedel"
+    log "parsed for smallimagedel... $smallimagedel"
 fi
 
-if [[ $nodel == false ]]; then
-    rm $largeimagelocation $smallimagelocation
-    log ":: deleted $largeimagelocation $smallimagelocation"
-fi
+removefiles
 
 logdestfile="/home/prole/sour/logs/$(date +"%m-%d-%y").log"
 echo -e "$datestamp: $largeimageurl $largeimagedel $smallimageurl $smallimagedel" >> "$logdestfile"
-log ":: wrote to log at $logdestfile..."
+log "wrote to log at $logdestfile..."
+log 'also wrote to logs/master.log'
 
 if [[ ${#largeimageurl} -gt 45 || ${#largeimageurl} -eq 0 ]]; then
-    log "Something went wrong with largeimageurl! Check the logs at $logdestfile" >&2
-    log ":: largeimageurl = $largeimageurl"
-    log ':: exiting due to error!'
+    log "Something went wrong with largeimageurl! Check the logs!" >&2
+    log "largeimageurl = $largeimageurl"
+    log_debug "$largeimageurl is greater than 45 or equal to 0 chars"
+    log 'cleaning up and exiting...'
+    removefiles
+    exit 1
 fi
 if [[ $thumb == true ]]; then
     if [[ ${#smallimageurl} -gt 45 || ${#smallimageurl} -eq 0 ]]; then
-        log "Something went wrong with smallimageurl! Check the logs at $logdestfile" >&2
-        log ":: smallimageurl = $smallimageurl"
-        log ':: exiting due to error!'
+        log "Something went wrong with smallimageurl! Check the logs!" >&2
+        log "smallimageurl = $smallimageurl"
+        log_debug "$smallimageurl is greater than 45 or equal to 0 chars"
+        log 'cleaning up and exiting...'
+        removefiles
+        exit 1
     fi
 fi
 
-
 if [[ $forum == true ]]; then
-    echo "[url=$largeimageurl][img]$smallimageurl[/img][/url]" | xclip
-    log ':: sent BBCode-formatted output to xclip, use middle mouse button to paste'
+    if [[ $sendtostdout == false ]]; then
+        echo "[url=$largeimageurl][img]$smallimageurl[/img][/url]" | xclip
+        log 'sent BBCode-formatted output to xclip, use middle mouse button to paste'
+    else
+        echo "[url=$largeimageurl][img]$smallimageurl[/img][/url]"
+    fi
 elif [[ $thumb == true ]]; then
-    echo "Full Size: $largeimageurl... Thumbnail: $smallimageurl" | xclip
-    log ':: sent output (both full + thumbnail) to xclip, use middle mouse button to paste'
+    if [[ $sendtostdout == false ]]; then
+        echo "Full Size: $largeimageurl... Thumbnail: $smallimageurl" | xclip
+        log 'sent output (both full + thumbnail) to xclip, use middle mouse button to paste'
+    else
+        echo "Full Size: $largeimageurl... Thumbnail: $smallimageurl"
+    fi
 else
-    echo "$largeimageurl" | xclip
-    log ':: sent output (one image) to xclip, use middle mouse button to paste'
+    if [[ $sendtostdout == false ]]; then
+        echo "${prefix}${largeimageurl}" | xclip
+        log 'sent output (one image) to xclip, use middle mouse button to paste'
+    else
+        echo "${prefix}${largeimageurl}"
 fi
 
-log ':: done... exiting'
+log "done... exiting\n"
 exit 0
