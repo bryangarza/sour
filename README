@@ -29,3 +29,12 @@ usage:
 - options must be used separately (i.e.: "-s -f", not "-sf")
 - you can register for your own key at http://imgur.com/register/api_anon
     (don't forget to edit sour/key!)
+
+depends:
+    - curl
+    - xclip
+    - scrot
+    - imagemagick
+
+author:
+    wolfcore <brygarza@gmail.com>
