@@ -53,7 +53,7 @@ function log_error {
 
 thumb=false
 forum=false
-select=false
+_select=false
 nodel=false
 download=false
 existing=false
@@ -95,7 +95,7 @@ do
             shift
             ;;
         -s | --select)
-            select=true
+            _select=true
             log 'selection on'
             shift
             ;;
@@ -169,7 +169,7 @@ log "1st filename: $largeimagelocation"
 
 # upload large
 if [[ $download == false && $existing == false ]]; then
-    if [[ $select == true ]]; then
+    if [[ $_select == true ]]; then
         scrot -s $largeimagelocation
         log 'scrot -s done'
     else
