@@ -26,7 +26,7 @@ _verbose=0
 _debug=0
 
 # ALL logs are written to this file, regardless of what the user inputs.
-masterlogfile="/home/$USER/sour/logs/master.log"
+masterlogfile="/home/$USER/.sour/logs/master.log"
 if [[ ! -e $masterlogfile ]]; then
     touch $masterlogfile
 fi
@@ -144,9 +144,9 @@ do
 done
 
 # Prevents further execution with nonexistent key
-keyfile="/home/$USER/sour/key"
+keyfile="/home/$USER/.sour/key"
 if [[ -e "$keyfile" ]]; then
-    source /home/$USER/sour/key
+    source $keyfile
     log "sourced $keyfile"
 else
     log_error "$keyfile not found,  exiting..."
@@ -156,7 +156,7 @@ function upload {
     curl -s -F "image=@$1" -F "key=$key" http://imgur.com/api/upload.xml
 }
 
-location="/home/$USER/sour/shots"
+location="/home/$USER/.sour/shots"
 if [[ ! -d "$location" ]]; then
     mkdir $location
     log "created $location"
@@ -234,9 +234,9 @@ fi
 
 removefiles
 
-logdestfile="/home/$USER/sour/logs/$(date +"%m-%d-%y").log"
+logdestfile="/home/$USER/.sour/logs/$(date +"%m-%d-%y").log"
 echo -e "$datestamp: $largeimageurl $largeimagedel $smallimageurl $smallimagedel" >> "$logdestfile"
-log "wrote to $logdestfile /home/$USER/sour/logs/master.log"
+log "wrote to $logdestfile /home/$USER/.sour/logs/master.log"
 
 # To prevent any errors from sneaking through, count length of URLs
 if [[ ${#largeimageurl} -gt 45 || ${#largeimageurl} -eq 0 ]]; then
