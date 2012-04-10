@@ -81,44 +81,44 @@ do
         -d | --debug)
             _verbose=1
             _debug=1
-            log 'debugging (& verbose) on'
+            log 'debugging on'
             shift
             ;;
         -t | --thumb)
             thumb=true
-            log 'thumbnail flag on'
+            log 'thumbnail on'
             shift
             ;;
         -f | --forum)
             forum=true
-            log 'forum flag detected... expect BBCode'
+            log 'forum format on'
             shift
             ;;
         -s | --select)
             select=true
-            log '-s for scrot on'
+            log 'selection on'
             shift
             ;;
         -n | --nodel)
             nodel=true
-            log 'nodel found as true, images will be found in shots subdir'
+            log 'no images will be deleted'
             shift
             ;;
         -u | --url)
             download=true
             downloadsource="$2"
-            log "found download source as $downloadsource"
+            log 'using url as image source'
             shift 2
             ;;
         -e | --existing)
             existing=true
             existingsource="$2"
-            log "found filepath of existing image at $existingsource"
+            log 'using existing image as source'
             shift 2
             ;;
         -o | --out)
             sendtostdout=true
-            log 'sending to stdout instead'
+            log 'sending to stdout, not clipboard'
             shift
             ;;
         -p | --prefix)
@@ -131,12 +131,11 @@ do
             break
             ;;
         -*)
-            log "sour: Unknown option (ignored): $1"
+            log "unknown option (ignored): $1"
             shift
             ;;
         *)
             break
-            log 'hit *, breaking...'
             ;;
     esac
 done
@@ -145,9 +144,9 @@ done
 keyfile="/home/$USER/sour/key"
 if [[ -e "$keyfile" ]]; then
     source /home/$USER/sour/key
-    log "$keyfile exists and was sourced"
+    log "sourced $keyfile"
 else
-    log_error ":: $keyfile does not exist! exiting...\n" >&2
+    log_error "$keyfile not found,  exiting..."
 fi
 
 function upload {
@@ -156,33 +155,33 @@ function upload {
 
 location="/home/$USER/sour/shots"
 if [[ ! -d "$location" ]]; then
-    log "No directory $location... creating"
+    mkdir $location
+    log "created $location"
 else
-    log "Using existing directory $location"
+    log "using $location"
 fi
 
 # The datestamp forms the base of the rest of the filenames.
 datestamp=$(date +"%F_%H-%M-%S")
-log "datestamp created as $datestamp"
 
 largeimagelocation="$location/$datestamp.png"
-log "filename of large image is $largeimagelocation"
+log "1st filename: $largeimagelocation"
 
 # upload large
 if [[ $download == false && $existing == false ]]; then
     if [[ $select == true ]]; then
         scrot -s $largeimagelocation
-        log 'took scrot -s'
+        log 'scrot -s done'
     else
         scrot $largeimagelocation
-        log 'took scrot'
+        log 'scrot done'
     fi
 elif [[ $download == true ]]; then
-    curl $downloadsource -o $largeimagelocation
+    curl $downloadsource -o $largeimagelocation > /dev/null 2>&1
     log "downloaded $downloadsource to $largeimagelocation"
 elif [[ $existing == true ]]; then
     cp $existingsource $largeimagelocation
-    log "copied existing image $existingsource to $largeimagelocation"
+    log "copied $existingsource to $largeimagelocation"
 fi
 
 # Have to check that files exists first, small one may not.
@@ -191,86 +190,86 @@ function removefiles {
     for file in "${list_of_files[@]}"; do
         if [[ -e $file ]]; then
             rm $file
-            log "deleted $file"
+            log "removed $file"
         fi
     done
 }
 
 largeimageresponse=$(upload $largeimagelocation)
-log 'uploaded large image to imgur'
-log_debug "response was\n$largeimageresponse"
+log 'uploaded 1st image'
+log_debug "response:\n$largeimageresponse"
 
 # If there are no errors, then $errorcheck == ''
 errorcheck=$(echo $largeimageresponse | grep 'error')
 if [[ ! -z "$errorcheck" ]]; then
     removefiles 
-    log_error "error found! see logs/master.log... cleaning up and exiting...\n"
+    log_error "error found! check master.log... cleaning up and exiting...\n"
 fi
 
 largeimageurl=$(echo $largeimageresponse | sed -r 's/.*<original_image>(.*)<\/original_image>.*/\1/')
-log "parsed for largeimageresponse... $largeimageurl"
+log "url: $largeimageurl"
 
 largeimagedel=$(echo $largeimageresponse | sed -r 's/.*<delete_page>(.*)<\/delete_page>.*/\1/')
-log "parsed for largeimagedel... $largeimagedel"
+log "deletion url: $largeimagedel"
 
 if [[ $thumb == true || $forum == true ]]; then
     smallimagelocation="$location/$datestamp-small.png"
-    log "filename of the thumbnail small image is $smallimagelocation"
     cp $largeimagelocation $smallimagelocation
-    log "copied the original image $largeimagelocation to $smallimagelocation"
+    log "copied $largeimagelocation to $smallimagelocation"
     mogrify -path $location -resize 250x250 $smallimagelocation
-    log "using mogrify on $smallimagelocation"
+    log "mogrify on $smallimagelocation done"
     smallimageresponse=$(upload $smallimagelocation)
-    log 'uploaded small thumbnail to imgur'
-    log_debug "response was\n$smallimageresponse"
+    log 'uploaded thumbnail'
+    log_debug "response:\n$smallimageresponse"
 
     smallimageurl=$(echo $smallimageresponse | sed -r 's/.*<original_image>(.*)<\/original_image>.*/\1/')
-    log "parsed for smallimageresponse... $smallimageurl"
+    log "thumbnail url: $smallimageurl"
 
     smallimagedel=$(echo $smallimageresponse | sed -r 's/.*<delete_page>(.*)<\/delete_page>.*/\1/')
-    log "parsed for smallimagedel... $smallimagedel"
+    log "thumnail deletion url: $smallimagedel"
 fi
 
 removefiles
 
 logdestfile="/home/$USER/sour/logs/$(date +"%m-%d-%y").log"
 echo -e "$datestamp: $largeimageurl $largeimagedel $smallimageurl $smallimagedel" >> "$logdestfile"
-log "wrote to logs at $logdestfile and /home/$USER/sour/logs/master.log"
+log "wrote to $logdestfile /home/$USER/sour/logs/master.log"
 
 # To prevent any errors from sneaking through, count length of URLs
 if [[ ${#largeimageurl} -gt 45 || ${#largeimageurl} -eq 0 ]]; then
-    log_error "Something went wrong with largeimageurl! Check the logs!" >&2
+    log_error 'something went wrong (large)! Check the logs!'
 fi
 if [[ $thumb == true ]]; then
     if [[ ${#smallimageurl} -gt 45 || ${#smallimageurl} -eq 0 ]]; then
-        log_error "Something went wrong with smallimageurl! Check the logs!" >&2
+        log_error 'something went wrong (thumb)! Check the logs!'
     fi
 fi
 
 if [[ $forum == true ]]; then
     if [[ $sendtostdout == false ]]; then
         echo "[url=$largeimageurl][img]$smallimageurl[/img][/url]" | xclip
-        log 'sent BBCode-formatted output to xclip, use middle mouse button to paste'
+        log 'paste with middle mouse buton'
     else
         echo "[url=$largeimageurl][img]$smallimageurl[/img][/url]"
     fi
 
 elif [[ $thumb == true ]]; then
     if [[ $sendtostdout == false ]]; then
-        echo "Full Size: $largeimageurl... Thumbnail: $smallimageurl" | xclip
-        log 'sent output (both full + thumbnail) to xclip, use middle mouse button to paste'
+        echo "full: $largeimageurl; thumbnail: $smallimageurl" | xclip
+        log 'paste with middle mouse button'
     else
-        echo "Full Size: $largeimageurl... Thumbnail: $smallimageurl"
+        echo "full: $largeimageurl; thumbnail: $smallimageurl"
     fi
 
 else
     # The prefix is equal to '' if it was not changed by the user.
     if [[ $sendtostdout == false ]]; then
         echo "${prefix}${largeimageurl}" | xclip
-        log 'sent output (one image) to xclip, use middle mouse button to paste'
+        log 'paste with middle mouse button'
     else
         echo "${prefix}${largeimageurl}"
     fi
 fi
 
+log 'success'
 echo '' >> "$masterlogfile"
