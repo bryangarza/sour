@@ -42,6 +42,15 @@ function log_debug {
     echo -e "[d] $@" >> "$masterlogfile"
 }
 
+function log_error {
+    if [[ $_verbose -eq 1 ]]; then
+        echo -e "[!] $@" >> "$masterlogfile"
+    fi
+    echo '' | xclip
+    echo -e "\a"
+    exit 1
+}
+
 thumb=false
 forum=false
 select=false
@@ -54,6 +63,8 @@ largeimageurl=''
 largeimagedel=''
 smallimageurl=''
 smallimagedel=''
+
+date >> "$masterlogfile"
 
 while :
 do
@@ -112,19 +123,15 @@ do
             ;;
         -p | --prefix)
             prefix="$2"
-            log "using prefix $prefix"
+            log "using prefix '$prefix'"
             shift 2
             ;;
         --)
             shift
-            log 'end of options... breaking...'
             break
             ;;
         -*)
-            if [[ $quiet == false ]]; then
-                echo "sour: Unknown option (ignored): $1" >&2
-            fi
-            log 'please see sour --help'
+            log "sour: Unknown option (ignored): $1"
             shift
             ;;
         *)
@@ -134,13 +141,13 @@ do
     esac
 done
 
+# Prevents further execution with nonexistent key
 keyfile="/home/$USER/sour/key"
 if [[ -e "$keyfile" ]]; then
     source /home/$USER/sour/key
     log "$keyfile exists and was sourced"
 else
-    log ":: $keyfile does not exist! exiting..." >&2
-    exit 1
+    log_error ":: $keyfile does not exist! exiting...\n" >&2
 fi
 
 function upload {
@@ -157,9 +164,11 @@ fi
 # The datestamp forms the base of the rest of the filenames.
 datestamp=$(date +"%F_%H-%M-%S")
 log "datestamp created as $datestamp"
+
 largeimagelocation="$location/$datestamp.png"
 log "filename of large image is $largeimagelocation"
 
+# upload large
 if [[ $download == false && $existing == false ]]; then
     if [[ $select == true ]]; then
         scrot -s $largeimagelocation
@@ -168,7 +177,6 @@ if [[ $download == false && $existing == false ]]; then
         scrot $largeimagelocation
         log 'took scrot'
     fi
-
 elif [[ $download == true ]]; then
     curl $downloadsource -o $largeimagelocation
     log "downloaded $downloadsource to $largeimagelocation"
@@ -179,17 +187,13 @@ fi
 
 # Have to check that files exists first, small one may not.
 function removefiles {
-    if [[ $nodel == false ]]; then
-        log 'removing files'
-        if [[ -e $largeimagelocation ]]; then
-            rm $largeimagelocation
-            log "deleted $largeimagelocation"
+    local list_of_files=("$largeimagelocation" "$smallimagelocation")
+    for file in "${list_of_files[@]}"; do
+        if [[ -e $file ]]; then
+            rm $file
+            log "deleted $file"
         fi
-        if [[ -e $smallimagelocation ]]; then
-            rm $smallimagelocation
-            log "deleted $smallimagelocation"
-        fi
-    fi
+    done
 }
 
 largeimageresponse=$(upload $largeimagelocation)
@@ -197,17 +201,10 @@ log 'uploaded large image to imgur'
 log_debug "response was\n$largeimageresponse"
 
 # If there are no errors, then $errorcheck == ''
-errorcheck=$(echo $largeimageresponse | sed -r 's/.*<error>(.*)<\/error>.*/\1/')
+errorcheck=$(echo $largeimageresponse | grep 'error')
 if [[ ! -z "$errorcheck" ]]; then
-    log 'error found!'
-    log_debug "error found was\n$errorcheck"
-    log 'see logs/master.log'
-    log 'cleaning up and exiting...'
-    removefiles
-    echo '' | xclip
-    exit 1
-else
-    log 'no errors found'
+    removefiles 
+    log_error "error found! see logs/master.log... cleaning up and exiting...\n"
 fi
 
 largeimageurl=$(echo $largeimageresponse | sed -r 's/.*<original_image>(.*)<\/original_image>.*/\1/')
@@ -236,27 +233,17 @@ fi
 
 removefiles
 
-logdestfile="/home/prole/sour/logs/$(date +"%m-%d-%y").log"
+logdestfile="/home/$USER/sour/logs/$(date +"%m-%d-%y").log"
 echo -e "$datestamp: $largeimageurl $largeimagedel $smallimageurl $smallimagedel" >> "$logdestfile"
-log "wrote to log at $logdestfile..."
-log 'also wrote to logs/master.log'
+log "wrote to logs at $logdestfile and /home/$USER/sour/logs/master.log"
 
+# To prevent any errors from sneaking through, count length of URLs
 if [[ ${#largeimageurl} -gt 45 || ${#largeimageurl} -eq 0 ]]; then
-    log "Something went wrong with largeimageurl! Check the logs!" >&2
-    log "largeimageurl = $largeimageurl"
-    log_debug "$largeimageurl is greater than 45 or equal to 0 chars"
-    log 'cleaning up and exiting...'
-    removefiles
-    exit 1
+    log_error "Something went wrong with largeimageurl! Check the logs!" >&2
 fi
 if [[ $thumb == true ]]; then
     if [[ ${#smallimageurl} -gt 45 || ${#smallimageurl} -eq 0 ]]; then
-        log "Something went wrong with smallimageurl! Check the logs!" >&2
-        log "smallimageurl = $smallimageurl"
-        log_debug "$smallimageurl is greater than 45 or equal to 0 chars"
-        log 'cleaning up and exiting...'
-        removefiles
-        exit 1
+        log_error "Something went wrong with smallimageurl! Check the logs!" >&2
     fi
 fi
 
@@ -267,6 +254,7 @@ if [[ $forum == true ]]; then
     else
         echo "[url=$largeimageurl][img]$smallimageurl[/img][/url]"
     fi
+
 elif [[ $thumb == true ]]; then
     if [[ $sendtostdout == false ]]; then
         echo "Full Size: $largeimageurl... Thumbnail: $smallimageurl" | xclip
@@ -274,6 +262,7 @@ elif [[ $thumb == true ]]; then
     else
         echo "Full Size: $largeimageurl... Thumbnail: $smallimageurl"
     fi
+
 else
     # The prefix is equal to '' if it was not changed by the user.
     if [[ $sendtostdout == false ]]; then
@@ -281,7 +270,7 @@ else
         log 'sent output (one image) to xclip, use middle mouse button to paste'
     else
         echo "${prefix}${largeimageurl}"
+    fi
 fi
 
-log "done... exiting\n"
-exit 0
+echo '' >> "$masterlogfile"
