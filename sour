@@ -27,6 +27,9 @@ _debug=0
 
 # ALL logs are written to this file, regardless of what the user inputs.
 masterlogfile="/home/$USER/sour/logs/master.log"
+if [[ ! -e $masterlogfile ]]; then
+    touch $masterlogfile
+fi
 
 function log {
     if [[ $_verbose -eq 1 ]]; then
