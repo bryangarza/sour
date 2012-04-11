@@ -1,12 +1,34 @@
 #!/bin/bash
 
+function usage {
+cat <<EOF
+sour: usage:
+
+    -h | --help              help
+    -s | --select            select area (does scrot -s)
+    -f | --forum             also make thumbnail, output with BBCode 
+    -n | --nodelete          don't delete images when done
+    -u | --url {URL}         don't scrot; download {URL} instead
+    -e | --existing {PATH}   don't scrot; use image in {PATH}
+    -p | --prefix "MSG: "    result is "MSG: URL" (not compatible with -t or -f)
+    -d | --debug             too much output
+
+    - options must be used separately (i.e.: "-s -f", not "-sf")
+EOF
+}
+
+if [[ $1 == '-h' || $1 == '--help' || $1 == "-\?" ]]; then
+    usage
+    exit 0
+fi
+
 # Files and directories needed for successful execution:
 #   - .sour/log/
 #   - .sour/shots/
 #   - .sour/key
 #   - .sour/log/(date)
 
-function createNeeded {
+function createNeededFiles {
     local needed_dirs=("$HOME/.sour/log" "$HOME/.sour/shots")
     local needed_files=("$HOME/.sour/key" "$HOME/.sour/log/$(date +"%m-%d-%y").log")
 
@@ -32,58 +54,48 @@ function createNeeded {
         die "$keyfile is empty, exiting..."
     fi
 }
-    
+
+function setDefaults {
+    location="$HOME/.sour/shots"
+    logdestfile="$HOME/.sour/log/$(date +"%m-%d-%y").log"
+    keyfile="$HOME/.sour/key"
+    datestamp=$(date +"%F_%H-%M-%S")
+
+    _debug=false
+    thumbcommand=''
+    selectioncommand=''
+    forum=false
+    nodelete=false
+    download=false
+    existing=false
+
+    prefix=''
+    largeimageurl=''
+    largeimagedel=''
+    smallimageurl=''
+    smallimagedel=''
+
+    firstdone=false
+}
 
 # Have to check that files exists first, small one may not.
 function removeFiles {
-    local list_of_files=("$largeimagelocation" "$smallimagelocation")
-    for file in "${list_of_files[@]}"; do
-        if [[ -e $file ]]; then
-            rm $file
-            log "removed $file"
+    if [[ $nodelete == false ]]; then
+        if [[ $existing == false ]]; then
+            local list_of_files=("$largeimagelocation" "$smallimagelocation")
+            for file in "${list_of_files[@]}"; do
+                if [[ -e $file ]]; then
+                    rm $file
+                    log "removed $file"
+                fi
+            done
+        else
+            if [[ -e $smallimagelocation ]]; then
+                rm $smallimagelocation
+            fi
         fi
-    done
+    fi
 }
-
-function usage {
-cat <<EOF
-sour: usage:
-    -h, --help              help
-    -s, --select            select area (does scrot -s)
-    -f, --forum             BBCode format for forums (uses [url=...] and a thumbnail)
-    -t, --thumb             also make thumbnail (included as part of -f)
-    -n, --nodelete          don't delete images when done
-    -u, --url {URL}         don't scrot; download {URL} instead
-    -e, --existing {PATH}   don't scrot; use image in {PATH}
-    -p, --prefix "MSG: "    result is "MSG: URL" (not compatible with -t or -f)
-        --debug             too much output
-
-    - options must be used separately (i.e.: "-s -f", not "-sf")
-EOF
-}
-
-location="$HOME/.sour/shots"
-logdestfile="$HOME/.sour/log/$(date +"%m-%d-%y").log"
-keyfile="$HOME/.sour/key"
-datestamp=$(date +"%F_%H-%M-%S")
-
-_debug=false
-thumb=false
-thumbcommand=''
-forum=false
-_select=false
-nodelete=false
-download=false
-existing=false
-
-prefix=''
-largeimageurl=''
-largeimagedel=''
-smallimageurl=''
-smallimagedel=''
-
-result_url=''
-result_del=''
 
 function log {
     if [[ $_debug == true ]]; then
@@ -99,34 +111,28 @@ function die {
     exit 1
 }
 
-while :
-do
-    case $1 in
-        -h | --help | -\?) usage; exit 0;;
-        --debug) _debug=true; log 'debug true' ; shift;;
-        -t | --thumb) thumb=true; thumbcommand='--thumb 20'; log 'thumb true'; shift;;
-        -f | --forum) forum=true; thumbcommand='--thumb 20'; log 'forum true'; shift;;
-        -s | --select) _select=true; log '_select true'; shift;;
-        -n | --nodelete) nodelete=true; log 'nodelete true'; shift;;
-        -u | --url) download=true; dl_source="$2"; log 'url true'; shift 2;;
-        -e | --existing) existing=true ; ex_source="$2" ; log 'existing true'
-            shift 2;;
-        -p | --prefix) prefix="$2"; log "using prefix '$prefix'"; shift;;
-        --) shift; break;;
-        -*) echo -e "unknown option: $1\n" >&2; usage; exit 1; shift;;
-        *) break;;
-    esac
-done
+function sendOutput {
+    echo "$datestamp: $largeimageurl $largeimagedel\
+ $smallimageurl $smallimagedel" >> "$logdestfile"
+    log "wrote to $logdestfile"
 
-createNeeded
+    if [[ $forum == true ]]; then
+        echo "[url=$largeimageurl][img]$smallimageurl[/img][/url]"
+    else
+        # The prefix is equal to '' if it was not changed by the user.
+        echo "${prefix}${largeimageurl}"
+    fi
+}
 
 function upload {
     curl -s -F "image=@$1" -F "key=$key" http://imgur.com/api/upload.xml
 }
 
 function parseAndReturn {
-    log 'in fn parseAndReturn'
+    log "in fn parseAndReturn, firstdone is $firstdone"
     local resp=$(echo "$@" | sed '/encoding/d')
+    local url=''
+    local del=''
     log "resp: $resp"
     local errorcheck$(echo "$response" | grep 'error')
 
@@ -144,70 +150,114 @@ function parseAndReturn {
         die "url too large or equal to zero"
     fi
 
-    result_url="$url"
-    result_del="$del"
+    if [[ $firstdone == false ]]; then
+        largeimageurl="$url"
+        largeimagedel="$del"
+        firstdone=true
+    else
+        smallimageurl="$url"
+        smallimagedel="$del"
+    fi
+
     log 'leaving fn parseAndReturn'
 }
     
+function makeImageUpload {
+    largeimageresponse=$(upload $largeimagelocation)
+    log "uploaded image, response:\n$largeimageresponse"
+    parseAndReturn "$largeimageresponse"
+    checkAndMakeThumb
+    removeFiles
+}
+
 function checkAndMakeThumb {
-    if [[ $thumb == true || $forum == true ]]; then
-        mogrify -path $location -resize 250x250 $smallimagelocation
-        log "mogrify on $smallimagelocation done"
+    if [[ $forum == true ]]; then
+        if [[ $download == true || $existing == true ]]; then
+            cp $largeimagelocation $smallimagelocation
+            mogrify -path $location -resize 250x250 $smallimagelocation
+            log "mogrify on $smallimagelocation done"
+        fi
+        smallimageresponse=$(upload $smallimagelocation)
+        log "uploaded thumb, response:\n$smallimageresponse"
+        parseAndReturn "$smallimageresponse"
     fi
 }
 
-largeimagelocation="$location/$datestamp.png"
-smallimagelocation="$location/$datestamp-thumb.png"
-log "1st filename: $largeimagelocation"
+function takeShot {
+    largeimagelocation="$location/$datestamp.png"
+    smallimagelocation="$location/$datestamp-thumb.png"
+    log "1st filename: $largeimagelocation\nthumb: $smallimagelocation"
 
-if [[ $download == false && $existing == false ]]; then
-    if [[ $_select == true ]]; then
-        scrot -s $largeimagelocation $thumbcommand
-        log 'scrot -s done'
-    else
-        scrot $largeimagelocation $thumbcommand
+    if [[ $download == false && $existing == false ]]; then
+        scrot $selectioncommand $largeimagelocation $thumbcommand
         log 'scrot done'
+    elif [[ $download == true ]]; then
+        curl $dl_source -o $largeimagelocation > /dev/null 2>&1
+        log "downloaded $dl_source to $largeimagelocation"
+    elif [[ $existing == true ]]; then
+        largeimagelocation="$ex_source"
     fi
-elif [[ $download == true ]]; then
-    curl $dl_source -o $largeimagelocation > /dev/null 2>&1
-    log "downloaded $dl_source to $largeimagelocation"
-    checkAndMakeThumb
-elif [[ $existing == true ]]; then
-    cp $ex_source $largeimagelocation
-    log "copied $ex_source to $largeimagelocation"
-    checkAndMakeThumb
-fi
+}
 
-largeimageresponse=$(upload $largeimagelocation)
-log "uploaded image, response:\n$largeimageresponse"
-parseAndReturn "$largeimageresponse"
-largeimageurl="$result_url"
-largeimagedel="$result_del"
-result_url=''
-result_del=''
+setDefaults
 
-if [[ $thumb == true || $forum == true ]]; then
-    smallimageresponse=$(upload $smallimagelocation)
-    log "uploaded thumb, response:\n$smallimageresponse"
-    parseAndReturn "$smallimageresponse"
-    smallimageurl="$result_url"
-    smallimagedel="$result_del"
-    result_url=''
-    result_del=''
-fi
+while :
+do
+    case $1 in
+        -d | --debug)
+            _debug=true
+            log 'debug true'
+            shift
+            ;;
+        -f | --forum)
+            forum=true
+            thumbcommand='--thumb 20'
+            log 'forum true'
+            shift
+            ;;
+        -s | --select)
+            selectioncommand='--select'
+            log 'select true'
+            shift
+            ;;
+        -n | --nodelete)
+            nodelete=true
+            log 'nodelete true'
+            shift
+            ;;
+        -u | --url)
+            download=true
+            dl_source="$2"
+            log 'url true'
+            shift 2
+            ;;
+        -e | --existing)
+            existing=true
+            ex_source="$2"
+            log 'existing true'
+            shift 2
+            ;;
+        -p | --prefix)
+            prefix="$2"
+            log "using prefix '$prefix'"
+            shift
+            ;;
+        --) shift
+            break
+            ;;
+        -*) echo -e "unknown option: $1\n" >&2
+            usage
+            exit 1
+            shift
+            ;;
+        *) break
+            ;;
+    esac
+done
 
-[[ $nodelete == false ]] && removeFiles
-
-echo -e "$datestamp: $largeimageurl $largeimagedel $smallimageurl $smallimagedel" >> "$logdestfile"
-log "wrote to $logdestfile"
-
-if [[ $forum == true ]]; then
-    echo "[url=$largeimageurl][img]$smallimageurl[/img][/url]"
-elif [[ $thumb == true ]]; then
-    echo "full: $largeimageurl; thumbnail: $smallimageurl"
-else
-    # The prefix is equal to '' if it was not changed by the user.
-    echo "${prefix}${largeimageurl}"
-fi
+createNeededFiles
+takeShot
+makeImageUpload
+sendOutput
 
 log 'success'
