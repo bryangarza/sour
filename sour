@@ -23,7 +23,11 @@ if [[ $1 == '-h' || $1 == '--help' || $1 == "-\?" ]]; then
 fi
 
 function setDefaults {
-    location="/tmp"
+    TMPDIR=${TMPDIR:-/tmp}
+    location=$(mktemp -d "$TMPDIR/XXXXXXXXXXXXXX") ||\
+        { echo "ERROR could not create temporary file" >&2; exit 1; }
+    log "location: $location"
+
     logdestfile="$HOME/.sour/log/$(date +"%m-%d-%y").log"
     keyfile="$HOME/.sour/key"
     datestamp=$(date +"%F_%H-%M-%S")
@@ -48,7 +52,7 @@ function setDefaults {
 # Files and directories needed for successful execution:
 #   - .sour/log/
 #   - .sour/key
-#   - .sour/log/(date)
+#   - .sour/log/(date).log
 
 function createNeededFiles {
     local needed_dirs=("$HOME/.sour/log")
@@ -79,22 +83,19 @@ function createNeededFiles {
 }
 
 # Have to check that files exists first, small one may not.
-function removeFiles {
+function removeImages {
     local list_of_files=("$largeimagelocation" "$smallimagelocation")
     local working_dir="$PWD"
     if [[ $nodelete == false ]]; then
 
         if [[ $existing == false ]]; then
             for file in "${list_of_files[@]}"; do
-                if [[ -e $file ]]; then
-                    rm $file
-                    log "removed $file"
-                fi
+                rm -f $file
+                log "removed $file if existent"
             done
         else
-            if [[ -e $smallimagelocation ]]; then
-                rm $smallimagelocation
-            fi
+            rm -f $smallimagelocation
+            removed "$smallimagelocation if existent"
         fi
 
     else
@@ -112,6 +113,17 @@ function removeFiles {
         fi
 
     fi
+
+    if [[ -d "$location" ]]; then
+        rm --recursive $location
+        log "removed $location"
+    fi
+}
+
+function setTrap {
+    trap 'removeImages' HUP QUIT
+    trap 'removeImages; trap - INT; kill -INT $$' INT
+    log 'traps set'
 }
 
 function log {
@@ -121,10 +133,9 @@ function log {
 }
 
 function die {
-    log "$@"
-    removeFiles
+    echo -e "ERROR: $@\a" >&2
+    removeImages
     echo '' | xclip
-    echo -en "\a"
     exit 1
 }
 
@@ -154,7 +165,7 @@ function parseAndReturn {
     local errorcheck$(echo "$response" | grep 'error')
 
     if [[ ! -z "$errorcheck" ]]; then
-        die "error found! cleaning up and exiting...\n"
+        die "errorcheck failed!"
     fi
 
     local url=$(echo "$resp" | sed -r 's/.*<original_image>(.*)<\/original_image>.*/\1/')
@@ -184,7 +195,7 @@ function makeImageUpload {
     log "uploaded image, response:\n$largeimageresponse"
     parseAndReturn "$largeimageresponse"
     checkAndMakeThumb
-    removeFiles
+    removeImages
 }
 
 function checkAndMakeThumb {
@@ -214,6 +225,8 @@ function takeShot {
     elif [[ $existing == true ]]; then
         largeimagelocation="$ex_source"
     fi
+
+    setTrap
 }
 
 setDefaults
