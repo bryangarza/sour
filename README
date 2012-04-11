@@ -1,7 +1,7 @@
 sour
 
-sour is a script that automates uploading of screenshots.
-sour makes uploading of screenshots seamless and painless.
+sour is a script that automates uploading of screenshots,
+    making uploading of screenshots seamless and painless.
 
 You can use sour to:
     - Take a screenshot -> upload -> paste somewhere
@@ -11,28 +11,25 @@ You can use sour to:
     - Review logs of all past uploads (and the URLs needed to delete any image)
     - Automate screenshot-replies in IRC (use -p)
 
-sour: upload to imgur faster
-
-usage:
+sour: usage:
     -h, --help              help
-    -v, --verbose           verbose output
     -s, --select            select area (does scrot -s)
     -f, --forum             BBCode format for forums (uses [url=...] and a thumbnail)
     -t, --thumb             also make thumbnail (included as part of -f)
-    -n, --nodel             don't delete images when done
+    -n, --nodelete          don't delete images when done
     -u, --url {URL}         don't scrot; download {URL} instead
     -e, --existing {PATH}   don't scrot; use image in {PATH}
-    -d, --debug             more output (includes -v)
-    -o, --out               send URL/s to stdout instead of xclip
     -p, --prefix "MSG: "    result is "MSG: URL" (not compatible with -t or -f)
+        --debug             too much output
 
-- options must be used separately (i.e.: "-s -f", not "-sf")
-- you can register for your own key at http://imgur.com/register/api_anon
-    (don't forget to edit sour/key!)
+    - options must be used separately (i.e.: "-s -f", not "-sf")
+
+key:
+    -you can register for your own key at http://imgur.com/register/api_anon
+        (don't forget to edit sour/key!)
 
 depends:
     - curl
-    - xclip
     - scrot
     - imagemagick
 

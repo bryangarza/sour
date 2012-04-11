@@ -58,7 +58,7 @@ sour: usage:
     -p, --prefix "MSG: "    result is "MSG: URL" (not compatible with -t or -f)
         --debug             too much output
 
-- options must be used separately (i.e.: "-s -f", not "-sf")
+    - options must be used separately (i.e.: "-s -f", not "-sf")
 EOF
 }
 
