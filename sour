@@ -1,171 +1,153 @@
 #!/bin/bash
 
+# Files and directories needed for successful execution:
+#   - .sour/log/
+#   - .sour/shots/
+#   - .sour/key
+#   - .sour/log/(date)
+
+function createNeeded {
+    local needed_dirs=("$HOME/.sour/log" "$HOME/.sour/shots")
+    local needed_files=("$HOME/.sour/key" "$HOME/.sour/log/$(date +"%m-%d-%y").log")
+
+    for directory in "${needed_dirs[@]}"; do
+        if [[ ! -d "$directory" ]]; then
+            mkdir "$directory"
+            log "created $directory"
+        fi
+    done
+
+    for file in "${needed_files[@]}"; do
+        if [[ ! -e "$file" ]]; then
+            touch "$file"
+            log "created $file"
+        fi
+    done
+
+    # File exists and isn't empty
+    if [[ -s "$keyfile" ]]; then
+        source $keyfile
+        log "sourced $keyfile"
+    else
+        die "$keyfile is empty, exiting..."
+    fi
+}
+    
+
+# Have to check that files exists first, small one may not.
+function removeFiles {
+    local list_of_files=("$largeimagelocation" "$smallimagelocation")
+    for file in "${list_of_files[@]}"; do
+        if [[ -e $file ]]; then
+            rm $file
+            log "removed $file"
+        fi
+    done
+}
+
 function usage {
 cat <<EOF
-sour: upload to imgur faster
-
-usage:
+sour: usage:
     -h, --help              help
     -v, --verbose           verbose output
     -s, --select            select area (does scrot -s)
     -f, --forum             BBCode format for forums (uses [url=...] and a thumbnail)
     -t, --thumb             also make thumbnail (included as part of -f)
-    -n, --nodel             don't delete images when done
+    -n, --nodelete          don't delete images when done
     -u, --url {URL}         don't scrot; download {URL} instead
     -e, --existing {PATH}   don't scrot; use image in {PATH}
-    -d, --debug             more output (includes -v)
-    -o, --out               send URL/s to stdout instead of xclip
     -p, --prefix "MSG: "    result is "MSG: URL" (not compatible with -t or -f)
 
 - options must be used separately (i.e.: "-s -f", not "-sf")
 EOF
 }
 
-# Declared first so logging can be done.
-_verbose=0
-_debug=0
+location="$HOME/.sour/shots"
+logdestfile="$HOME/.sour/log/$(date +"%m-%d-%y").log"
+keyfile="$HOME/.sour/key"
+datestamp=$(date +"%F_%H-%M-%S")
 
-# ALL logs are written to this file, regardless of what the user inputs.
-masterlogfile="/home/$USER/.sour/logs/master.log"
-if [[ ! -e $masterlogfile ]]; then
-    touch $masterlogfile
-fi
-
-function log {
-    if [[ $_verbose -eq 1 ]]; then
-        echo -e "[v] $@"
-    fi
-    echo -e "[v] $@" >> "$masterlogfile"
-}
-
-function log_debug {
-    if [[ $_debug -eq 1 ]]; then
-        echo -e "[d] $@"
-    fi
-    echo -e "[d] $@" >> "$masterlogfile"
-}
-
-function log_error {
-    if [[ $_verbose -eq 1 ]]; then
-        echo -e "[!] $@" >> "$masterlogfile"
-    fi
-    echo '' | xclip
-    echo -e "\a"
-    exit 1
-}
-
+_verbose=false
 thumb=false
 forum=false
 _select=false
-nodel=false
+nodelete=false
 download=false
 existing=false
-sendtostdout=false
+
 prefix=''
 largeimageurl=''
 largeimagedel=''
 smallimageurl=''
 smallimagedel=''
 
-date >> "$masterlogfile"
+result_url=''
+result_del=''
+
+function log {
+    if [[ $_verbose == true ]]; then
+        echo -e "- $@"
+    fi
+}
+
+function die {
+    log "$@"
+    removeFiles
+    echo '' | xclip
+    echo -en "\a"
+    exit 1
+}
 
 while :
 do
     case $1 in
-        -h | --help | -\?)
-            usage
-            exit 0
-            ;;
-        -v | --verbose)
-            _verbose=1
-            log 'verbose on'
-            shift
-            ;;
-        -d | --debug)
-            _verbose=1
-            _debug=1
-            log 'debugging on'
-            shift
-            ;;
-        -t | --thumb)
-            thumb=true
-            log 'thumbnail on'
-            shift
-            ;;
-        -f | --forum)
-            forum=true
-            log 'forum format on'
-            shift
-            ;;
-        -s | --select)
-            _select=true
-            log 'selection on'
-            shift
-            ;;
-        -n | --nodel)
-            nodel=true
-            log 'no images will be deleted'
-            shift
-            ;;
-        -u | --url)
-            download=true
-            downloadsource="$2"
-            log 'using url as image source'
-            shift 2
-            ;;
-        -e | --existing)
-            existing=true
-            existingsource="$2"
-            log 'using existing image as source'
-            shift 2
-            ;;
-        -o | --out)
-            sendtostdout=true
-            log 'sending to stdout, not clipboard'
-            shift
-            ;;
-        -p | --prefix)
-            prefix="$2"
-            log "using prefix '$prefix'"
-            shift 2
-            ;;
-        --)
-            shift
-            break
-            ;;
-        -*)
-            log "unknown option (ignored): $1"
-            shift
-            ;;
-        *)
-            break
-            ;;
+        -h | --help | -\?) usage; exit 0;;
+        -v | --verbose) _verbose=true; log 'verbose true' ; shift;;
+        -t | --thumb) thumb=true; log 'thumb true'; shift;;
+        -f | --forum) forum=true; log 'forum true'; shift;;
+        -s | --select) _select=true; log '_select true'; shift;;
+        -n | --nodelete) nodelete=true; log 'nodelete true'; shift;;
+        -u | --url) download=true; dl_source="$2"; log 'url true'; shift 2;;
+        -e | --existing) existing=true ; ex_source="$2" ; log 'existing true'
+            shift 2;;
+        -p | --prefix) prefix="$2"; log "using prefix '$prefix'"; shift;;
+        --) shift; break;;
+        -*) echo -e "unknown option: $1\n" >&2; usage; exit 1; shift;;
+        *) break;;
     esac
 done
 
-# Prevents further execution with nonexistent key
-keyfile="/home/$USER/.sour/key"
-if [[ -e "$keyfile" ]]; then
-    source $keyfile
-    log "sourced $keyfile"
-else
-    log_error "$keyfile not found,  exiting..."
-fi
+createNeeded
 
 function upload {
     curl -s -F "image=@$1" -F "key=$key" http://imgur.com/api/upload.xml
 }
 
-location="/home/$USER/.sour/shots"
-if [[ ! -d "$location" ]]; then
-    mkdir $location
-    log "created $location"
-else
-    log "using $location"
-fi
+function parseAndReturn {
+    log 'in fn parseAndReturn'
+    local resp=$(echo "$@" | sed '/encoding/d')
+    log "resp: $resp"
+    local errorcheck$(echo "$response" | grep 'error')
 
-# The datestamp forms the base of the rest of the filenames.
-datestamp=$(date +"%F_%H-%M-%S")
+    if [[ ! -z "$errorcheck" ]]; then
+        die "error found! cleaning up and exiting...\n"
+    fi
+
+    local url=$(echo "$resp" | sed -r 's/.*<original_image>(.*)<\/original_image>.*/\1/')
+    log "url: $url"
+
+    local del=$(echo "$resp" | sed -r 's/.*<delete_page>(.*)<\/delete_page>.*/\1/')
+    log "deletion url: $del"
+
+    if [[ ${#url} -gt 45 || ${#url} -eq 0 ]]; then
+        die "url too large or equal to zero"
+    fi
+
+    result_url="$url"
+    result_del="$del"
+    log 'leaving fn parseAndReturn'
+}
+    
 
 largeimagelocation="$location/$datestamp.png"
 log "1st filename: $largeimagelocation"
@@ -180,40 +162,21 @@ if [[ $download == false && $existing == false ]]; then
         log 'scrot done'
     fi
 elif [[ $download == true ]]; then
-    curl $downloadsource -o $largeimagelocation > /dev/null 2>&1
-    log "downloaded $downloadsource to $largeimagelocation"
+    curl $dl_source -o $largeimagelocation > /dev/null 2>&1
+    log "downloaded $dl_source to $largeimagelocation"
 elif [[ $existing == true ]]; then
-    cp $existingsource $largeimagelocation
-    log "copied $existingsource to $largeimagelocation"
+    cp $ex_source $largeimagelocation
+    log "copied $ex_source to $largeimagelocation"
 fi
-
-# Have to check that files exists first, small one may not.
-function removefiles {
-    local list_of_files=("$largeimagelocation" "$smallimagelocation")
-    for file in "${list_of_files[@]}"; do
-        if [[ -e $file ]]; then
-            rm $file
-            log "removed $file"
-        fi
-    done
-}
 
 largeimageresponse=$(upload $largeimagelocation)
 log 'uploaded 1st image'
-log_debug "response:\n$largeimageresponse"
-
-# If there are no errors, then $errorcheck == ''
-errorcheck=$(echo $largeimageresponse | grep 'error')
-if [[ ! -z "$errorcheck" ]]; then
-    removefiles 
-    log_error "error found! check master.log... cleaning up and exiting...\n"
-fi
-
-largeimageurl=$(echo $largeimageresponse | sed -r 's/.*<original_image>(.*)<\/original_image>.*/\1/')
-log "url: $largeimageurl"
-
-largeimagedel=$(echo $largeimageresponse | sed -r 's/.*<delete_page>(.*)<\/delete_page>.*/\1/')
-log "deletion url: $largeimagedel"
+log "response:\n$largeimageresponse"
+parseAndReturn "$largeimageresponse"
+largeimageurl="$result_url"
+largeimagedel="$result_del"
+result_url=''
+result_del=''
 
 if [[ $thumb == true || $forum == true ]]; then
     smallimagelocation="$location/$datestamp-small.png"
@@ -223,56 +186,26 @@ if [[ $thumb == true || $forum == true ]]; then
     log "mogrify on $smallimagelocation done"
     smallimageresponse=$(upload $smallimagelocation)
     log 'uploaded thumbnail'
-    log_debug "response:\n$smallimageresponse"
-
-    smallimageurl=$(echo $smallimageresponse | sed -r 's/.*<original_image>(.*)<\/original_image>.*/\1/')
-    log "thumbnail url: $smallimageurl"
-
-    smallimagedel=$(echo $smallimageresponse | sed -r 's/.*<delete_page>(.*)<\/delete_page>.*/\1/')
-    log "thumnail deletion url: $smallimagedel"
+    log "response:\n$smallimageresponse"
+    parseAndReturn "$smallimageresponse"
+    smallimageurl="$result_url"
+    smallimagedel="$result_del"
+    result_url=''
+    result_del=''
 fi
 
-removefiles
+[[ $nodelete == false ]] && removeFiles
 
-logdestfile="/home/$USER/.sour/logs/$(date +"%m-%d-%y").log"
 echo -e "$datestamp: $largeimageurl $largeimagedel $smallimageurl $smallimagedel" >> "$logdestfile"
-log "wrote to $logdestfile /home/$USER/.sour/logs/master.log"
-
-# To prevent any errors from sneaking through, count length of URLs
-if [[ ${#largeimageurl} -gt 45 || ${#largeimageurl} -eq 0 ]]; then
-    log_error 'something went wrong (large)! Check the logs!'
-fi
-if [[ $thumb == true ]]; then
-    if [[ ${#smallimageurl} -gt 45 || ${#smallimageurl} -eq 0 ]]; then
-        log_error 'something went wrong (thumb)! Check the logs!'
-    fi
-fi
+log "wrote to $logdestfile"
 
 if [[ $forum == true ]]; then
-    if [[ $sendtostdout == false ]]; then
-        echo "[url=$largeimageurl][img]$smallimageurl[/img][/url]" | xclip
-        log 'paste with middle mouse buton'
-    else
-        echo "[url=$largeimageurl][img]$smallimageurl[/img][/url]"
-    fi
-
+    echo "[url=$largeimageurl][img]$smallimageurl[/img][/url]"
 elif [[ $thumb == true ]]; then
-    if [[ $sendtostdout == false ]]; then
-        echo "full: $largeimageurl; thumbnail: $smallimageurl" | xclip
-        log 'paste with middle mouse button'
-    else
-        echo "full: $largeimageurl; thumbnail: $smallimageurl"
-    fi
-
+    echo "full: $largeimageurl; thumbnail: $smallimageurl"
 else
     # The prefix is equal to '' if it was not changed by the user.
-    if [[ $sendtostdout == false ]]; then
-        echo "${prefix}${largeimageurl}" | xclip
-        log 'paste with middle mouse button'
-    else
-        echo "${prefix}${largeimageurl}"
-    fi
+    echo "${prefix}${largeimageurl}"
 fi
 
 log 'success'
-echo '' >> "$masterlogfile"
