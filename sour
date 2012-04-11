@@ -56,7 +56,7 @@ sour: usage:
     -u, --url {URL}         don't scrot; download {URL} instead
     -e, --existing {PATH}   don't scrot; use image in {PATH}
     -p, --prefix "MSG: "    result is "MSG: URL" (not compatible with -t or -f)
-    -d, --debug             too much output
+        --debug             too much output
 
 - options must be used separately (i.e.: "-s -f", not "-sf")
 EOF
@@ -102,7 +102,7 @@ while :
 do
     case $1 in
         -h | --help | -\?) usage; exit 0;;
-        -d | --debug) _debug=true; log 'debug true' ; shift;;
+        --debug) _debug=true; log 'debug true' ; shift;;
         -t | --thumb) thumb=true; log 'thumb true'; shift;;
         -f | --forum) forum=true; log 'forum true'; shift;;
         -s | --select) _select=true; log '_select true'; shift;;
