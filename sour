@@ -49,7 +49,6 @@ function usage {
 cat <<EOF
 sour: usage:
     -h, --help              help
-    -v, --verbose           verbose output
     -s, --select            select area (does scrot -s)
     -f, --forum             BBCode format for forums (uses [url=...] and a thumbnail)
     -t, --thumb             also make thumbnail (included as part of -f)
@@ -57,6 +56,7 @@ sour: usage:
     -u, --url {URL}         don't scrot; download {URL} instead
     -e, --existing {PATH}   don't scrot; use image in {PATH}
     -p, --prefix "MSG: "    result is "MSG: URL" (not compatible with -t or -f)
+    -d, --debug             too much output
 
 - options must be used separately (i.e.: "-s -f", not "-sf")
 EOF
@@ -67,7 +67,7 @@ logdestfile="$HOME/.sour/log/$(date +"%m-%d-%y").log"
 keyfile="$HOME/.sour/key"
 datestamp=$(date +"%F_%H-%M-%S")
 
-_verbose=false
+_debug=false
 thumb=false
 forum=false
 _select=false
@@ -85,7 +85,7 @@ result_url=''
 result_del=''
 
 function log {
-    if [[ $_verbose == true ]]; then
+    if [[ $_debug == true ]]; then
         echo -e "- $@"
     fi
 }
@@ -102,7 +102,7 @@ while :
 do
     case $1 in
         -h | --help | -\?) usage; exit 0;;
-        -v | --verbose) _verbose=true; log 'verbose true' ; shift;;
+        -d | --debug) _debug=true; log 'debug true' ; shift;;
         -t | --thumb) thumb=true; log 'thumb true'; shift;;
         -f | --forum) forum=true; log 'forum true'; shift;;
         -s | --select) _select=true; log '_select true'; shift;;
