@@ -69,6 +69,7 @@ datestamp=$(date +"%F_%H-%M-%S")
 
 _debug=false
 thumb=false
+thumbmessage=''
 forum=false
 _select=false
 nodelete=false
@@ -103,8 +104,8 @@ do
     case $1 in
         -h | --help | -\?) usage; exit 0;;
         --debug) _debug=true; log 'debug true' ; shift;;
-        -t | --thumb) thumb=true; log 'thumb true'; shift;;
-        -f | --forum) forum=true; log 'forum true'; shift;;
+        -t | --thumb) thumb=true; thumbmessage='--thumb 20'; log 'thumb true'; shift;;
+        -f | --forum) forum=true; thumbmessage='--thumb 20'; log 'forum true'; shift;;
         -s | --select) _select=true; log '_select true'; shift;;
         -n | --nodelete) nodelete=true; log 'nodelete true'; shift;;
         -u | --url) download=true; dl_source="$2"; log 'url true'; shift 2;;
@@ -148,25 +149,34 @@ function parseAndReturn {
     log 'leaving fn parseAndReturn'
 }
     
+function checkAndMakeThumb {
+    if [[ $thumb == true || $forum == true ]]; then
+        mogrify -path $location -resize 250x250 $smallimagelocation
+        log "mogrify on $smallimagelocation done"
+    fi
+}
 
 largeimagelocation="$location/$datestamp.png"
+smallimagelocation="$location/$datestamp-thumb.png"
 log "1st filename: $largeimagelocation"
 
-# upload large
 if [[ $download == false && $existing == false ]]; then
     if [[ $_select == true ]]; then
-        scrot -s $largeimagelocation
+        scrot -s $largeimagelocation $thumbmessage
         log 'scrot -s done'
     else
-        scrot $largeimagelocation
+        log "thumbmessage=$thumbmessage"
+        scrot $largeimagelocation $thumbmessage
         log 'scrot done'
     fi
 elif [[ $download == true ]]; then
     curl $dl_source -o $largeimagelocation > /dev/null 2>&1
     log "downloaded $dl_source to $largeimagelocation"
+    checkAndMakeThumb
 elif [[ $existing == true ]]; then
     cp $ex_source $largeimagelocation
     log "copied $ex_source to $largeimagelocation"
+    checkAndMakeThumb
 fi
 
 largeimageresponse=$(upload $largeimagelocation)
@@ -179,14 +189,8 @@ result_url=''
 result_del=''
 
 if [[ $thumb == true || $forum == true ]]; then
-    smallimagelocation="$location/$datestamp-small.png"
-    cp $largeimagelocation $smallimagelocation
-    log "copied $largeimagelocation to $smallimagelocation"
-    mogrify -path $location -resize 250x250 $smallimagelocation
-    log "mogrify on $smallimagelocation done"
     smallimageresponse=$(upload $smallimagelocation)
-    log 'uploaded thumbnail'
-    log "response:\n$smallimageresponse"
+    log "uploaded thumb, response:\n$smallimageresponse"
     parseAndReturn "$smallimageresponse"
     smallimageurl="$result_url"
     smallimagedel="$result_del"
