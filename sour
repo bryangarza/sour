@@ -22,39 +22,6 @@ if [[ $1 == '-h' || $1 == '--help' || $1 == "-\?" ]]; then
     exit 0
 fi
 
-# Files and directories needed for successful execution:
-#   - .sour/log/
-#   - .sour/shots/
-#   - .sour/key
-#   - .sour/log/(date)
-
-function createNeededFiles {
-    local needed_dirs=("$HOME/.sour/log" "$HOME/.sour/shots")
-    local needed_files=("$HOME/.sour/key" "$HOME/.sour/log/$(date +"%m-%d-%y").log")
-
-    for directory in "${needed_dirs[@]}"; do
-        if [[ ! -d "$directory" ]]; then
-            mkdir "$directory"
-            log "created $directory"
-        fi
-    done
-
-    for file in "${needed_files[@]}"; do
-        if [[ ! -e "$file" ]]; then
-            touch "$file"
-            log "created $file"
-        fi
-    done
-
-    # File exists and isn't empty
-    if [[ -s "$keyfile" ]]; then
-        source $keyfile
-        log "sourced $keyfile"
-    else
-        die "$keyfile is empty, exiting..."
-    fi
-}
-
 function setDefaults {
     location="$HOME/.sour/shots"
     logdestfile="$HOME/.sour/log/$(date +"%m-%d-%y").log"
@@ -76,6 +43,40 @@ function setDefaults {
     smallimagedel=''
 
     firstdone=false
+}
+
+# Files and directories needed for successful execution:
+#   - .sour/log/
+#   - .sour/shots/
+#   - .sour/key
+#   - .sour/log/(date)
+
+function createNeededFiles {
+    local needed_dirs=("$HOME/.sour/log" "$HOME/.sour/shots")
+    local needed_files=("$HOME/.sour/key" "$HOME/.sour/log/$(date +"%m-%d-%y").log")
+    local default_key='https://raw.github.com/wolfcore/sour/master/key'
+
+    for directory in "${needed_dirs[@]}"; do
+        if [[ ! -d "$directory" ]]; then
+            mkdir "$directory"
+            log "created $directory"
+        fi
+    done
+
+    for file in "${needed_files[@]}"; do
+        if [[ ! -e "$file" ]]; then
+            touch "$file"
+            log "created $file"
+        fi
+    done
+
+    # File exists and isn't empty
+    if [[ ! -s "$keyfile" ]]; then
+        curl $default_key -o $keyfile > /dev/null 2>&1
+        log "restoring default key from $default_key"
+    fi
+    source $keyfile
+    log "sourced $keyfile"
 }
 
 # Have to check that files exists first, small one may not.
