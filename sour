@@ -23,7 +23,7 @@ if [[ $1 == '-h' || $1 == '--help' || $1 == "-\?" ]]; then
 fi
 
 function setDefaults {
-    location="$HOME/.sour/shots"
+    location="/tmp"
     logdestfile="$HOME/.sour/log/$(date +"%m-%d-%y").log"
     keyfile="$HOME/.sour/key"
     datestamp=$(date +"%F_%H-%M-%S")
@@ -47,12 +47,11 @@ function setDefaults {
 
 # Files and directories needed for successful execution:
 #   - .sour/log/
-#   - .sour/shots/
 #   - .sour/key
 #   - .sour/log/(date)
 
 function createNeededFiles {
-    local needed_dirs=("$HOME/.sour/log" "$HOME/.sour/shots")
+    local needed_dirs=("$HOME/.sour/log")
     local needed_files=("$HOME/.sour/key" "$HOME/.sour/log/$(date +"%m-%d-%y").log")
     local default_key='https://raw.github.com/wolfcore/sour/master/key'
 
@@ -81,9 +80,11 @@ function createNeededFiles {
 
 # Have to check that files exists first, small one may not.
 function removeFiles {
+    local list_of_files=("$largeimagelocation" "$smallimagelocation")
+    local working_dir="$PWD"
     if [[ $nodelete == false ]]; then
+
         if [[ $existing == false ]]; then
-            local list_of_files=("$largeimagelocation" "$smallimagelocation")
             for file in "${list_of_files[@]}"; do
                 if [[ -e $file ]]; then
                     rm $file
@@ -95,6 +96,21 @@ function removeFiles {
                 rm $smallimagelocation
             fi
         fi
+
+    else
+
+        if [[ $existing == true && $forum == true ]]; then
+            mv $smallimagelocation $working_dir
+            log "$file moved to current directory"
+        elif [[ $existing == false ]]; then
+            for file in "${list_of_files[@]}"; do
+                if [[ -e $file ]]; then
+                    mv $file $working_dir
+                    log "$file moved to current directory"
+                fi
+            done
+        fi
+
     fi
 }
 
