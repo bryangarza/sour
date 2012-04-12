@@ -7,13 +7,14 @@ sour: usage:
     -h | --help              help
     -s | --select            select area (does scrot -s)
     -f | --forum             also make thumbnail, output with BBCode 
-    -n | --nodelete          don't delete images when done
+    -k | --keep              keep images when done, don't remove
     -u | --url {URL}         don't scrot; download {URL} instead
     -e | --existing {PATH}   don't scrot; use image in {PATH}
     -p | --prefix "MSG: "    result is "MSG: URL" (not compatible with -t or -f)
-    -d | --debug             too much output
 
     - options must be used separately (i.e.: "-s -f", not "-sf")
+    - when using an existing image, it won't be removed regardless of your
+        usage of --keep (thumbnails do get removed unless you use -k or --keep)
 EOF
 }
 
@@ -28,7 +29,6 @@ function setDefaults {
     TMPDIR=${TMPDIR:-/tmp}
     location=$(mktemp -d "$TMPDIR/XXXXXXXXXXXXXX") ||\
         { echo "ERROR could not create temporary directory" >&2; exit 1; }
-    log "location: $location"
     working_dir="$PWD"
 
     logdestfile="$HOME/.sour/log/$(date +"%m-%d-%y").log"
@@ -40,11 +40,10 @@ function setDefaults {
     needed_dirs=("$HOME/.sour/log")
     default_key='https://raw.github.com/wolfcore/sour/master/key'
 
-    _debug=false
     thumbcommand=''
     selectioncommand=''
     forum=false
-    nodelete=false
+    keep=false
     download=false
     existing=false
 
@@ -70,24 +69,20 @@ function createNeededFiles {
     for directory in "${needed_dirs[@]}"; do
         if [[ ! -d "$directory" ]]; then
             mkdir "$directory" || exit 1
-            log "created $directory"
         fi
     done
 
     for file in "${needed_files[@]}"; do
         if [[ ! -e "$file" ]]; then
             touch "$file" || exit 1
-            log "created $file"
         fi
     done
 
     # File exists and isn't empty
     if [[ ! -s "$keyfile" ]]; then
         curl $default_key -o $keyfile > /dev/null 2>&1
-        log "restoring default key from $default_key"
     fi
     source $keyfile
-    log "sourced $keyfile"
 }
 
 function moveTo {
@@ -97,11 +92,11 @@ function moveTo {
     # checking that the file exists before moving
     if [[ -e $file ]]; then
         if mv $file $dest &> /dev/null; then
-            log "$file moved to $dest"
+            :
         else
             # Try sending the file to home dir.
             if [[ ! $dest == $HOME ]]; then
-                log "ERROR: failed to move $file to $dest...sending to $HOME"
+                echo "failed to move $file to $dest...sending to $HOME" >&2
                 moveTo $file $HOME
             else
                 die "ERROR: failed to move $file to $dest"
@@ -111,13 +106,13 @@ function moveTo {
 }
 
 function removeTemporaries {
-    if [[ $nodelete == true ]]; then
+    if [[ $keep == true ]]; then
         if [[ $existing == true ]]; then
 
             if [[ $forum == true ]]; then
                 moveTo $smallimagelocation $working_dir
             else
-                # If the if nodelete == true, existing == true, and forum ==
+                # If the if keep == true, existing == true, and forum ==
                 # false, that means that the only image that was used was not
                 # created by the program, but already existed, so we leave it.
                 # Do nothing
@@ -135,23 +130,15 @@ function removeTemporaries {
             moveTo $largeimagelocation $working_dir
         fi
 
-    # nodelete == false, remove everything
+    # keep == false, remove everything
     else
         rm --force --recursive $location
-        log "recursively removed $location and its contents"
     fi
 }
 
 function setTraps {
     trap 'removeTemporaries' HUP QUIT
     trap 'removeTemporaries; trap - INT; kill -INT $$' INT
-    log 'traps set'
-}
-
-function log {
-    if [[ $_debug == true ]]; then
-        echo -e "- $@"
-    fi
 }
 
 function die {
@@ -164,7 +151,6 @@ function die {
 function sendOutput {
     echo "$datestamp: $largeimageurl $largeimagedel\
  $smallimageurl $smallimagedel" >> "$logdestfile"
-    log "wrote to $logdestfile"
 
     if [[ $forum == true ]]; then
         echo "[url=$largeimageurl][img]$smallimageurl[/img][/url]"
@@ -179,11 +165,9 @@ function uploadFile {
 }
 
 function parseAndReturn {
-    log "in fn parseAndReturn, firstdone is $firstdone"
     local resp=$(echo "$@" | sed '/encoding/d')
     local url=''
     local del=''
-    log "resp: $resp"
     local errorcheck$(echo "$response" | grep 'error')
 
     if [[ ! -z "$errorcheck" ]]; then
@@ -191,10 +175,8 @@ function parseAndReturn {
     fi
 
     local url=$(echo "$resp" | sed -r 's/.*<original_image>(.*)<\/original_image>.*/\1/')
-    log "url: $url"
 
     local del=$(echo "$resp" | sed -r 's/.*<delete_page>(.*)<\/delete_page>.*/\1/')
-    log "deletion url: $del"
 
     if [[ ${#url} -gt 45 || ${#url} -eq 0 ]]; then
         die "url too large or equal to zero"
@@ -213,7 +195,6 @@ function parseAndReturn {
     
 function makeImageUpload {
     largeimageresponse=$(uploadFile $largeimagelocation)
-    log "uploaded image, response:\n$largeimageresponse"
     parseAndReturn "$largeimageresponse"
     checkAndMakeThumb
     removeTemporaries
@@ -224,10 +205,8 @@ function checkAndMakeThumb {
         if [[ $download == true || $existing == true ]]; then
             cp $largeimagelocation $smallimagelocation
             mogrify -path $location -resize 250x250 $smallimagelocation
-            log "mogrify on $smallimagelocation done"
         fi
         smallimageresponse=$(uploadFile $smallimagelocation)
-        log "uploaded thumb, response:\n$smallimageresponse"
         parseAndReturn "$smallimageresponse"
     fi
 }
@@ -238,16 +217,10 @@ function takeShot {
     largeimagelocation="$location/$datestamp.$extension"
     smallimagelocation="$location/$datestamp-thumb.$extension"
 
-    log "1st filename: $largeimagelocation"
-    [[ $forum == true ]] && log "thumb: $smallimagelocation"
-
     if [[ $download == false && $existing == false ]]; then
-        log 'taking scrot...'
         scrot $selectioncommand $largeimagelocation $thumbcommand
-        log 'scrot done'
     elif [[ $download == true ]]; then
         curl $dl_source -o $largeimagelocation > /dev/null 2>&1
-        log "downloaded $dl_source to $largeimagelocation"
     elif [[ $existing == true ]]; then
         largeimagelocation="$ex_source"
     fi
@@ -257,7 +230,6 @@ function takeShot {
 
 function setExtension {
     extension=${1##*.}
-    log "extension for image: $extension"
 }
 
 setDefaults
@@ -265,30 +237,21 @@ setDefaults
 while :
 do
     case $1 in
-        -d | --debug)
-            _debug=true
-            log 'debug true'
-            shift
-            ;;
         -f | --forum)
             forum=true
             thumbcommand='--thumb 20'
-            log 'forum true'
             shift
             ;;
         -s | --select)
             selectioncommand='--select'
-            log 'select true'
             shift
             ;;
-        -n | --nodelete)
-            nodelete=true
-            log 'nodelete true'
+        -k | --keep)
+            keep=true
             shift
             ;;
         -u | --url)
             download=true
-            log 'url true'
             dl_source="$2"
             setExtension "$dl_source"
             shift 2
@@ -296,13 +259,11 @@ do
         -e | --existing)
             existing=true
             ex_source="$2"
-            log 'existing true'
             setExtension "$ex_source"
             shift 2
             ;;
         -p | --prefix)
             prefix="$2"
-            log "using prefix '$prefix'"
             shift
             ;;
         --) shift
