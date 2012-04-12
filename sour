@@ -242,6 +242,7 @@ function takeShot {
     [[ $forum == true ]] && log "thumb: $smallimagelocation"
 
     if [[ $download == false && $existing == false ]]; then
+        log 'taking scrot...'
         scrot $selectioncommand $largeimagelocation $thumbcommand
         log 'scrot done'
     elif [[ $download == true ]]; then
