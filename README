@@ -3,14 +3,6 @@ sour
 sour is a script that automates uploading of screenshots,
     making uploading of screenshots seamless and painless.
 
-You can use sour to:
-    - Take a screenshot -> upload -> paste somewhere
-    - Take a screenshot -> make thumbnail -> upload -> paste somewhere
-    - Automate posting to forums, BBCode automagically added
-    - Use an existing image (either from a URL, or a filepath)
-    - Review logs of all past uploads (and the URLs needed to delete any image)
-    - Automate screenshot-replies in IRC (use -p)
-
 sour: usage:
 
     -h | --help              help
@@ -23,6 +15,9 @@ sour: usage:
     -d | --debug             too much output
 
     - options must be used separately (i.e.: "-s -f", not "-sf")
+
+log:
+    - you can find all past URLs and their deletion URLs in the log directory.
 
 key:
     -you can register for your own key at http://imgur.com/register/api_anon
