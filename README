@@ -12,15 +12,15 @@ You can use sour to:
     - Automate screenshot-replies in IRC (use -p)
 
 sour: usage:
-    -h, --help              help
-    -s, --select            select area (does scrot -s)
-    -f, --forum             BBCode format for forums (uses [url=...] and a thumbnail)
-    -t, --thumb             also make thumbnail (included as part of -f)
-    -n, --nodelete          don't delete images when done
-    -u, --url {URL}         don't scrot; download {URL} instead
-    -e, --existing {PATH}   don't scrot; use image in {PATH}
-    -p, --prefix "MSG: "    result is "MSG: URL" (not compatible with -t or -f)
-        --debug             too much output
+
+    -h | --help              help
+    -s | --select            select area (does scrot -s)
+    -f | --forum             also make thumbnail, output with BBCode 
+    -n | --nodelete          don't delete images when done
+    -u | --url {URL}         don't scrot; download {URL} instead
+    -e | --existing {PATH}   don't scrot; use image in {PATH}
+    -p | --prefix "MSG: "    result is "MSG: URL" (not compatible with -t or -f)
+    -d | --debug             too much output
 
     - options must be used separately (i.e.: "-s -f", not "-sf")
 
