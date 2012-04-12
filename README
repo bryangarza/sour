@@ -22,7 +22,7 @@ log:
 
 key:
     -you can register for your own key at http://imgur.com/register/api_anon
-        (don't forget to edit sour/key!)
+        (don't forget to edit .sour/key!)
 
 depends:
     - curl
