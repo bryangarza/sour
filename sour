@@ -97,10 +97,15 @@ function moveTo {
     # checking that the file exists before moving
     if [[ -e $file ]]; then
         if mv $file $dest &> /dev/null; then
-            log "$file moved to current directory"
+            log "$file moved to $dest"
         else
-            echo "ERROR: failed to move $file to $dest" >&2
-            exit 1
+            # Try sending the file to home dir.
+            if [[ ! $dest == $HOME ]]; then
+                log "ERROR: failed to move $file to $dest...sending to $HOME"
+                moveTo $file $HOME
+            else
+                die "ERROR: failed to move $file to $dest"
+            fi
         fi
     fi
 }
