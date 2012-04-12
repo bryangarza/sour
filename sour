@@ -106,8 +106,6 @@ function moveTo {
 }
 
 function removeTemporaries {
-    local self='removeTemporaries'
-
     if [[ $nodelete == true ]]; then
         if [[ $existing == true ]]; then
 
@@ -140,8 +138,6 @@ function removeTemporaries {
 }
 
 function setTraps {
-    local self='setTraps'
-
     trap 'removeTemporaries' HUP QUIT
     trap 'removeTemporaries; trap - INT; kill -INT $$' INT
     log 'traps set'
@@ -161,8 +157,6 @@ function die {
 }
 
 function sendOutput {
-    local self='sendOutput'
-
     echo "$datestamp: $largeimageurl $largeimagedel\
  $smallimageurl $smallimagedel" >> "$logdestfile"
     log "wrote to $logdestfile"
@@ -176,14 +170,10 @@ function sendOutput {
 }
 
 function uploadFile {
-    local self='uploadFile'
-
     curl -s -F "image=@$1" -F "key=$key" http://imgur.com/api/upload.xml
 }
 
 function parseAndReturn {
-    local self='parseAndReturn'
-    
     log "in fn parseAndReturn, firstdone is $firstdone"
     local resp=$(echo "$@" | sed '/encoding/d')
     local url=''
@@ -217,8 +207,6 @@ function parseAndReturn {
 }
     
 function makeImageUpload {
-    local self='makeImageUpload'
-
     largeimageresponse=$(uploadFile $largeimagelocation)
     log "uploaded image, response:\n$largeimageresponse"
     parseAndReturn "$largeimageresponse"
@@ -227,8 +215,6 @@ function makeImageUpload {
 }
 
 function checkAndMakeThumb {
-    local self='checkAndMakeThumb'
-
     if [[ $forum == true ]]; then
         if [[ $download == true || $existing == true ]]; then
             cp $largeimagelocation $smallimagelocation
@@ -242,8 +228,6 @@ function checkAndMakeThumb {
 }
 
 function takeShot {
-    local self='takeShot'
-
     # These have to be defined after $extension has been changed by the option
     # parsing.
     largeimagelocation="$location/$datestamp.$extension"
@@ -266,8 +250,6 @@ function takeShot {
 }
 
 function setExtension {
-    local self='setExtension'
-
     extension=${1##*.}
     log "extension for image: $extension"
 }
