@@ -27,6 +27,7 @@ function setDefaults {
     location=$(mktemp -d "$TMPDIR/XXXXXXXXXXXXXX") ||\
         { echo "ERROR could not create temporary file" >&2; exit 1; }
     log "location: $location"
+    working_dir="$PWD"
 
     logdestfile="$HOME/.sour/log/$(date +"%m-%d-%y").log"
     keyfile="$HOME/.sour/key"
@@ -40,6 +41,7 @@ function setDefaults {
     download=false
     existing=false
 
+    extension='png'
     prefix=''
     largeimageurl=''
     largeimagedel=''
@@ -82,41 +84,55 @@ function createNeededFiles {
     log "sourced $keyfile"
 }
 
-# Have to check that files exists first, small one may not.
+function moveSmallToCurrentDir {
+# checking that the file exists before moving
+if [[ -e $smallimagelocation ]]; then
+    mv $smallimagelocation $working_dir ||\
+        { echo "ERROR: failed to move $smallimagelocation to\
+$working_dir, there may still be files left to clean up!" >&2; exit 1; }
+    log "$smallimagelocation moved to current directory"
+fi
+}
+
+function moveLargeToCurrentDir {
+if [[ -e $largeimagelocation ]]; then
+    mv $largeimagelocation $working_dir ||\
+        { echo "ERROR: failed to move $largeimagelocation to\
+$working_dir, there may still be files left to clean up!" >&2; exit 1; }
+    log "$largeimagelocation moved to current directory"
+fi
+}
+
 function removeImages {
-    local list_of_files=("$largeimagelocation" "$smallimagelocation")
-    local working_dir="$PWD"
-    if [[ $nodelete == false ]]; then
 
-        if [[ $existing == false ]]; then
-            for file in "${list_of_files[@]}"; do
-                rm -f $file
-                log "removed $file if existent"
-            done
+    if [[ $nodelete == true ]]; then
+        if [[ $existing == true ]]; then
+
+            if [[ $forum == true ]]; then
+                moveSmallToCurrentDir
+            else
+                # If the if nodelete == true, existing == true, and forum ==
+                # false, that means that the only image that was used was not
+                # created by the program, but already existed, so we leave it.
+                # Do nothing
+                :
+            fi
+
+        # existing == false, but we need to keep whatever images we have.
         else
-            rm -f $smallimagelocation
-            removed "$smallimagelocation if existent"
+
+            if [[ $forum == true ]]; then
+                moveSmallToCurrentDir
+            fi
+            # Regardless of the thumbnail, we still need to move the regular
+            # image
+            moveLargeToCurrentDir
         fi
 
+    # nodelete == false, remove everything
     else
-
-        if [[ $existing == true && $forum == true ]]; then
-            mv $smallimagelocation $working_dir
-            log "$file moved to current directory"
-        elif [[ $existing == false ]]; then
-            for file in "${list_of_files[@]}"; do
-                if [[ -e $file ]]; then
-                    mv $file $working_dir
-                    log "$file moved to current directory"
-                fi
-            done
-        fi
-
-    fi
-
-    if [[ -d "$location" ]]; then
-        rm --recursive $location
-        log "removed $location"
+        rm --force --recursive $location
+        log "recursively removed $location and its contents"
     fi
 }
 
@@ -212,8 +228,8 @@ function checkAndMakeThumb {
 }
 
 function takeShot {
-    largeimagelocation="$location/$datestamp.png"
-    smallimagelocation="$location/$datestamp-thumb.png"
+    largeimagelocation="$location/$datestamp.$extension"
+    smallimagelocation="$location/$datestamp-thumb.$extension"
     log "1st filename: $largeimagelocation\nthumb: $smallimagelocation"
 
     if [[ $download == false && $existing == false ]]; then
@@ -257,14 +273,18 @@ do
             ;;
         -u | --url)
             download=true
-            dl_source="$2"
             log 'url true'
+            dl_source="$2"
+            extension=${dl_source##*.}
+            log "extension for image: $extension"
             shift 2
             ;;
         -e | --existing)
             existing=true
             ex_source="$2"
             log 'existing true'
+            extension=${ex_source##*.}
+            log "extension for image: $extension"
             shift 2
             ;;
         -p | --prefix)
