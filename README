@@ -8,13 +8,14 @@ sour: usage:
     -h | --help              help
     -s | --select            select area (does scrot -s)
     -f | --forum             also make thumbnail, output with BBCode 
-    -n | --nodelete          don't delete images when done
+    -k | --keep              keep images when done, don't remove
     -u | --url {URL}         don't scrot; download {URL} instead
     -e | --existing {PATH}   don't scrot; use image in {PATH}
     -p | --prefix "MSG: "    result is "MSG: URL" (not compatible with -t or -f)
-    -d | --debug             too much output
 
     - options must be used separately (i.e.: "-s -f", not "-sf")
+    - when using an existing image, it won't be removed regardless of your
+        usage of --keep (thumbnails do get removed unless you use -k or --keep)
 
 log:
     - you can find all past URLs and their deletion URLs in the log directory.
