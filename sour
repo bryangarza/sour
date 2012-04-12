@@ -25,13 +25,18 @@ fi
 function setDefaults {
     TMPDIR=${TMPDIR:-/tmp}
     location=$(mktemp -d "$TMPDIR/XXXXXXXXXXXXXX") ||\
-        { echo "ERROR could not create temporary file" >&2; exit 1; }
+        { echo "ERROR could not create temporary directory" >&2; exit 1; }
     log "location: $location"
     working_dir="$PWD"
 
     logdestfile="$HOME/.sour/log/$(date +"%m-%d-%y").log"
     keyfile="$HOME/.sour/key"
     datestamp=$(date +"%F_%H-%M-%S")
+
+    # For createNeededFiles
+    needed_files=("$keyfile" "$logdestfile")
+    needed_dirs=("$HOME/.sour/log")
+    default_key='https://raw.github.com/wolfcore/sour/master/key'
 
     _debug=false
     thumbcommand=''
@@ -41,6 +46,8 @@ function setDefaults {
     download=false
     existing=false
 
+    # this will be changed depending on if there is a download or use of an
+    # existing image
     extension='png'
     prefix=''
     largeimageurl=''
@@ -54,23 +61,19 @@ function setDefaults {
 # Files and directories needed for successful execution:
 #   - .sour/log/
 #   - .sour/key
-#   - .sour/log/(date).log
+#   - .sour/log/(datestamp).log
 
 function createNeededFiles {
-    local needed_dirs=("$HOME/.sour/log")
-    local needed_files=("$HOME/.sour/key" "$HOME/.sour/log/$(date +"%m-%d-%y").log")
-    local default_key='https://raw.github.com/wolfcore/sour/master/key'
-
     for directory in "${needed_dirs[@]}"; do
         if [[ ! -d "$directory" ]]; then
-            mkdir "$directory"
+            mkdir "$directory" || exit 1
             log "created $directory"
         fi
     done
 
     for file in "${needed_files[@]}"; do
         if [[ ! -e "$file" ]]; then
-            touch "$file"
+            touch "$file" || exit 1
             log "created $file"
         fi
     done
@@ -104,7 +107,6 @@ fi
 }
 
 function removeImages {
-
     if [[ $nodelete == true ]]; then
         if [[ $existing == true ]]; then
 
@@ -203,7 +205,6 @@ function parseAndReturn {
         smallimagedel="$del"
     fi
 
-    log 'leaving fn parseAndReturn'
 }
     
 function makeImageUpload {
@@ -309,5 +310,3 @@ createNeededFiles
 takeShot
 makeImageUpload
 sendOutput
-
-log 'success'
