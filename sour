@@ -23,6 +23,8 @@ if [[ $1 == '-h' || $1 == '--help' || $1 == "-\?" ]]; then
 fi
 
 function setDefaults {
+    local self='setDefaults'
+
     TMPDIR=${TMPDIR:-/tmp}
     location=$(mktemp -d "$TMPDIR/XXXXXXXXXXXXXX") ||\
         { echo "ERROR could not create temporary directory" >&2; exit 1; }
@@ -64,6 +66,7 @@ function setDefaults {
 #   - .sour/log/(datestamp).log
 
 function createNeededFiles {
+    local self='createNeededFiles'
     for directory in "${needed_dirs[@]}"; do
         if [[ ! -d "$directory" ]]; then
             mkdir "$directory" || exit 1
@@ -87,31 +90,29 @@ function createNeededFiles {
     log "sourced $keyfile"
 }
 
-function moveSmallToCurrentDir {
-# checking that the file exists before moving
-if [[ -e $smallimagelocation ]]; then
-    mv $smallimagelocation $working_dir ||\
-        { echo "ERROR: failed to move $smallimagelocation to\
-$working_dir, there may still be files left to clean up!" >&2; exit 1; }
-    log "$smallimagelocation moved to current directory"
-fi
+function moveTo {
+    local file="$1"
+    local dest="$2"
+
+    # checking that the file exists before moving
+    if [[ -e $file ]]; then
+        if mv $file $dest &> /dev/null; then
+            log "$file moved to current directory"
+        else
+            echo "ERROR: failed to move $file to $dest" >&2
+            exit 1
+        fi
+    fi
 }
 
-function moveLargeToCurrentDir {
-if [[ -e $largeimagelocation ]]; then
-    mv $largeimagelocation $working_dir ||\
-        { echo "ERROR: failed to move $largeimagelocation to\
-$working_dir, there may still be files left to clean up!" >&2; exit 1; }
-    log "$largeimagelocation moved to current directory"
-fi
-}
+function removeTemporaries {
+    local self='removeTemporaries'
 
-function removeImages {
     if [[ $nodelete == true ]]; then
         if [[ $existing == true ]]; then
 
             if [[ $forum == true ]]; then
-                moveSmallToCurrentDir
+                moveTo $smallimagelocation $working_dir
             else
                 # If the if nodelete == true, existing == true, and forum ==
                 # false, that means that the only image that was used was not
@@ -124,11 +125,11 @@ function removeImages {
         else
 
             if [[ $forum == true ]]; then
-                moveSmallToCurrentDir
+                moveTo $smallimagelocation $working_dir
             fi
             # Regardless of the thumbnail, we still need to move the regular
             # image
-            moveLargeToCurrentDir
+            moveTo $largeimagelocation $working_dir
         fi
 
     # nodelete == false, remove everything
@@ -138,9 +139,11 @@ function removeImages {
     fi
 }
 
-function setTrap {
-    trap 'removeImages' HUP QUIT
-    trap 'removeImages; trap - INT; kill -INT $$' INT
+function setTraps {
+    local self='setTraps'
+
+    trap 'removeTemporaries' HUP QUIT
+    trap 'removeTemporaries; trap - INT; kill -INT $$' INT
     log 'traps set'
 }
 
@@ -152,12 +155,14 @@ function log {
 
 function die {
     echo -e "ERROR: $@\a" >&2
-    removeImages
+    removeTemporaries
     echo '' | xclip
     exit 1
 }
 
 function sendOutput {
+    local self='sendOutput'
+
     echo "$datestamp: $largeimageurl $largeimagedel\
  $smallimageurl $smallimagedel" >> "$logdestfile"
     log "wrote to $logdestfile"
@@ -170,11 +175,15 @@ function sendOutput {
     fi
 }
 
-function upload {
+function uploadFile {
+    local self='uploadFile'
+
     curl -s -F "image=@$1" -F "key=$key" http://imgur.com/api/upload.xml
 }
 
 function parseAndReturn {
+    local self='parseAndReturn'
+    
     log "in fn parseAndReturn, firstdone is $firstdone"
     local resp=$(echo "$@" | sed '/encoding/d')
     local url=''
@@ -208,30 +217,40 @@ function parseAndReturn {
 }
     
 function makeImageUpload {
-    largeimageresponse=$(upload $largeimagelocation)
+    local self='makeImageUpload'
+
+    largeimageresponse=$(uploadFile $largeimagelocation)
     log "uploaded image, response:\n$largeimageresponse"
     parseAndReturn "$largeimageresponse"
     checkAndMakeThumb
-    removeImages
+    removeTemporaries
 }
 
 function checkAndMakeThumb {
+    local self='checkAndMakeThumb'
+
     if [[ $forum == true ]]; then
         if [[ $download == true || $existing == true ]]; then
             cp $largeimagelocation $smallimagelocation
             mogrify -path $location -resize 250x250 $smallimagelocation
             log "mogrify on $smallimagelocation done"
         fi
-        smallimageresponse=$(upload $smallimagelocation)
+        smallimageresponse=$(uploadFile $smallimagelocation)
         log "uploaded thumb, response:\n$smallimageresponse"
         parseAndReturn "$smallimageresponse"
     fi
 }
 
 function takeShot {
+    local self='takeShot'
+
+    # These have to be defined after $extension has been changed by the option
+    # parsing.
     largeimagelocation="$location/$datestamp.$extension"
     smallimagelocation="$location/$datestamp-thumb.$extension"
-    log "1st filename: $largeimagelocation\nthumb: $smallimagelocation"
+
+    log "1st filename: $largeimagelocation"
+    [[ $forum == true ]] && log "thumb: $smallimagelocation"
 
     if [[ $download == false && $existing == false ]]; then
         scrot $selectioncommand $largeimagelocation $thumbcommand
@@ -243,7 +262,14 @@ function takeShot {
         largeimagelocation="$ex_source"
     fi
 
-    setTrap
+    setTraps
+}
+
+function setExtension {
+    local self='setExtension'
+
+    extension=${1##*.}
+    log "extension for image: $extension"
 }
 
 setDefaults
@@ -276,16 +302,14 @@ do
             download=true
             log 'url true'
             dl_source="$2"
-            extension=${dl_source##*.}
-            log "extension for image: $extension"
+            setExtension "$dl_source"
             shift 2
             ;;
         -e | --existing)
             existing=true
             ex_source="$2"
             log 'existing true'
-            extension=${ex_source##*.}
-            log "extension for image: $extension"
+            setExtension "$ex_source"
             shift 2
             ;;
         -p | --prefix)
