@@ -166,22 +166,20 @@ function uploadFile {
 }
 
 function parseAndReturn {
-    local resp=$(echo "$@" | sed '/encoding/d')
-    local url=''
-    local del=''
-    local errorcheck=$(echo "$resp" | grep 'error')
-
-    if [[ "$errorcheck" ]]; then
-        die "errorcheck failed!"
+    local resp="$@"
+    if [[ $resp = *error* ]]; then
+        die "error found in response"
     fi
 
-    local url=$(echo "$resp" | sed -r 's/.*<original_image>(.*)<\/original_image>.*/\1/')
+    url=${resp#*<original_image>}
+    url=${url%</original_image>*}
+    
+    del=${resp#*<delete_page>}
+    del=${del%</delete_page>*}
 
-    local del=$(echo "$resp" | sed -r 's/.*<delete_page>(.*)<\/delete_page>.*/\1/')
-
-    if [[ ${#url} -gt 45 || ${#url} -eq 0 ]]; then
-        die "url too large or equal to zero"
-    fi
+    # If correct, url will be length of 28
+    local url_length="${#url}"
+    (( url_length != 28))  && die "url too large or equal to zero"
 
     if [[ $firstdone == false ]]; then
         largeimageurl="$url"
@@ -198,7 +196,6 @@ function makeImageUpload {
     largeimageresponse=$(uploadFile "$largeimagelocation")
     parseAndReturn "$largeimageresponse"
     checkAndMakeThumb
-    removeTemporaries
 }
 
 function checkAndMakeThumb {
