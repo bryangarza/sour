@@ -36,7 +36,7 @@ function setDefaults {
     datestamp=$(date +"%F_%H-%M-%S")
 
     # For createNeededFiles
-    needed_files=("$keyfile" "$logdestfile")
+    needed_files=("$logdestfile")
     needed_dirs=("$HOME/.sour" "$HOME/.sour/log")
     default_key='https://raw.github.com/wolfcore/sour/master/key'
 
@@ -70,18 +70,24 @@ function createNeededFiles {
     local self='createNeededFiles'
     for directory in "${needed_dirs[@]}"; do
         if [[ ! -d "$directory" ]]; then
-            mkdir "$directory" || exit 1
+            if ! mkdir "$directory" &> /dev/null; then
+                echo "ERROR: could not create directory $directory" >&2
+                exit 1
+            fi
         fi
     done
 
     for file in "${needed_files[@]}"; do
         if [[ ! -e "$file" ]]; then
-            touch "$file" || exit 1
+            if ! touch "$file" &> /dev/null; then
+                echo "ERROR: could not create $file" >&2
+                exit 1
+            fi
         fi
     done
 
-    # File exists and isn't empty
-    if [[ ! -s "$keyfile" ]]; then
+    # File exists and is a regular file, file exists and isn't empty
+    if [[ ! -f "$keyfile" || ! -s "$keyfile" ]]; then
         curl $default_key -o $keyfile > /dev/null 2>&1
     fi
     source $keyfile
@@ -93,9 +99,7 @@ function moveTo {
 
     # checking that the file exists before moving
     if [[ -e $file ]]; then
-        if mv $file $dest &> /dev/null; then
-            :
-        else
+        if ! mv $file $dest &> /dev/null; then
             # Try sending the file to home dir.
             if [[ ! $dest == $HOME ]]; then
                 echo "failed to move $file to $dest...sending to $HOME" >&2
