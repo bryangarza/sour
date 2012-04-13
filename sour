@@ -95,8 +95,8 @@ function moveTo {
     local dest="$2"
 
     # checking that the file exists before moving
-    if [[ -e $file ]]; then
-        if ! mv $file $dest &> /dev/null; then
+    if [[ -e "$file" ]]; then
+        if ! mv "$file" "$dest" &> /dev/null; then
             # Try sending the file to home dir.
             if [[ ! $dest == $HOME ]]; then
                 echo "failed to move $file to $dest...sending to $HOME" >&2
@@ -113,12 +113,11 @@ function removeTemporaries {
         if ((existing)); then
 
             if ((forum)); then
-                moveTo $smallimagelocation $working_dir
+                moveTo "$smallimagelocation" "$working_dir"
             else
                 # If the if keep == true, existing == true, and forum ==
                 # false, that means that the only image that was used was not
                 # created by the program, but already existed, so we leave it.
-                # Do nothing
                 :
             fi
 
@@ -126,16 +125,16 @@ function removeTemporaries {
         else
 
             if ((forum)); then
-                moveTo $smallimagelocation $working_dir
+                moveTo "$smallimagelocation" "$working_dir"
             fi
             # Regardless of the thumbnail, we still need to move the regular
             # image
-            moveTo $largeimagelocation $working_dir
+            moveTo "$largeimagelocation" "$working_dir"
         fi
 
     # keep == false, remove everything
     else
-        rm --force --recursive $location
+        rm --force --recursive "$location"
     fi
 }
 
