@@ -37,7 +37,7 @@ function setDefaults {
 
     # For createNeededFiles
     needed_files=("$keyfile" "$logdestfile")
-    needed_dirs=("$HOME/.sour/log")
+    needed_dirs=("$HOME/.sour" "$HOME/.sour/log")
     default_key='https://raw.github.com/wolfcore/sour/master/key'
 
     thumbcommand=''
@@ -60,10 +60,12 @@ function setDefaults {
 }
 
 # Files and directories needed for successful execution:
+#   - .sour/
 #   - .sour/log/
 #   - .sour/key
 #   - .sour/log/(datestamp).log
 
+# Creating directories before populating with needed_files.
 function createNeededFiles {
     local self='createNeededFiles'
     for directory in "${needed_dirs[@]}"; do
