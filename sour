@@ -23,7 +23,7 @@ if [[ $1 == '-h' || $1 == '--help' || $1 == '-?' ]]; then
     exit 0
 fi
 
-function setDefaults {
+setDefaults() {
     TMPDIR=${TMPDIR:-/tmp}
     location=$(mktemp -d "$TMPDIR/XXXXXXXXXXXXXX") ||\
         { echo "ERROR could not create temporary directory" >&2; exit 1; }
@@ -64,7 +64,7 @@ function setDefaults {
 #   - .sour/log/(datestamp).log
 
 # Creating directories before populating with needed_files.
-function createNeededFiles {
+createNeededFiles() {
     for directory in "${needed_dirs[@]}"; do
         if [[ ! -d "$directory" ]]; then
             if ! mkdir "$directory" &> /dev/null; then
@@ -90,7 +90,7 @@ function createNeededFiles {
     source $keyfile
 }
 
-function moveTo {
+moveTo() {
     local file="$1"
     local dest="$2"
 
@@ -108,7 +108,7 @@ function moveTo {
     fi
 }
 
-function removeTemporaries {
+removeTemporaries() {
     if ((keep)); then
         if ((existing)); then
 
@@ -138,17 +138,17 @@ function removeTemporaries {
     fi
 }
 
-function setTraps {
+setTraps() {
     trap 'removeTemporaries' EXIT
 }
 
-function die {
+die() {
     echo -e "ERROR: $@\a" >&2
     echo '' | xclip
     exit 1
 }
 
-function sendOutput {
+sendOutput() {
     echo "$datestamp: $largeimageurl $largeimagedel\
  $smallimageurl $smallimagedel" >> "$logdestfile"
 
@@ -160,11 +160,11 @@ function sendOutput {
     fi
 }
 
-function uploadFile {
+uploadFile() {
     curl -s -F "image=@$1" -F "key=$key" http://imgur.com/api/upload.xml
 }
 
-function parseAndReturn {
+parseAndReturn() {
     local resp="$@"
     if [[ $resp = *error* ]]; then
         die "error found in response"
@@ -191,13 +191,13 @@ function parseAndReturn {
 
 }
     
-function makeImageUpload {
+makeImageUpload() {
     largeimageresponse=$(uploadFile "$largeimagelocation")
     parseAndReturn "$largeimageresponse"
     checkAndMakeThumb
 }
 
-function checkAndMakeThumb {
+checkAndMakeThumb() {
     if ((forum)); then
         if ((download || existing)); then
             cp "$largeimagelocation" "$smallimagelocation"
@@ -208,7 +208,7 @@ function checkAndMakeThumb {
     fi
 }
 
-function takeShot {
+takeShot() {
     # These have to be defined after $extension has been changed by the option
     # parsing.
     largeimagelocation="$location/$datestamp.$extension"
@@ -225,7 +225,7 @@ function takeShot {
     setTraps
 }
 
-function setExtension {
+setExtension() {
     extension="${1##*.}"
 }
 
