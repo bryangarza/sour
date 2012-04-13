@@ -3,6 +3,12 @@ sour
 sour is a script that automates uploading of screenshots,
     making uploading of screenshots seamless and painless.
 
+setup:
+    - clone this repo into ~/.sour:
+        `git clone git://github.com/wolfcore/sour.git ~/.sour`
+    - sour attempts to recreate missing files -- so if you accidentally delete
+      ~/.sour/key, don't worry, just run sour once and it'll fix itself
+
 sour: usage:
 
     -h | --help              help
