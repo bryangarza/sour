@@ -140,13 +140,11 @@ function removeTemporaries {
 }
 
 function setTraps {
-    trap 'removeTemporaries' HUP QUIT
-    trap 'removeTemporaries; trap - INT; kill -INT $$' INT
+    trap 'removeTemporaries' EXIT
 }
 
 function die {
     echo -e "ERROR: $@\a" >&2
-    removeTemporaries
     echo '' | xclip
     exit 1
 }
@@ -173,7 +171,7 @@ function parseAndReturn {
     local del=''
     local errorcheck=$(echo "$resp" | grep 'error')
 
-    if [[ ! -z "$errorcheck" ]]; then
+    if [[ "$errorcheck" ]]; then
         die "errorcheck failed!"
     fi
 
