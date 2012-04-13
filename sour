@@ -170,10 +170,10 @@ function parseAndReturn {
         die "error found in response"
     fi
 
-    url=${resp#*<original_image>}
+    local url=${resp#*<original_image>}
     url=${url%</original_image>*}
     
-    del=${resp#*<delete_page>}
+    local del=${resp#*<delete_page>}
     del=${del%</delete_page>*}
 
     # If correct, url will be length of 28
