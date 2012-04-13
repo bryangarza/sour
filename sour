@@ -1,6 +1,6 @@
 #!/bin/bash
 
-function usage {
+usage() {
 cat <<EOF
 sour: usage:
 
