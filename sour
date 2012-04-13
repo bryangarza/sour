@@ -40,10 +40,10 @@ function setDefaults {
 
     thumbcommand=''
     selectioncommand=''
-    forum=false
-    keep=false
-    download=false
-    existing=false
+    forum=0
+    keep=0
+    download=0
+    existing=0
 
     # this will be changed depending on if there is a download or use of an
     # existing image
@@ -54,7 +54,7 @@ function setDefaults {
     smallimageurl=''
     smallimagedel=''
 
-    firstdone=false
+    firstdone=0
 }
 
 # Files and directories needed for successful execution:
@@ -109,10 +109,10 @@ function moveTo {
 }
 
 function removeTemporaries {
-    if [[ $keep == true ]]; then
-        if [[ $existing == true ]]; then
+    if ((keep)); then
+        if ((existing)); then
 
-            if [[ $forum == true ]]; then
+            if ((forum)); then
                 moveTo $smallimagelocation $working_dir
             else
                 # If the if keep == true, existing == true, and forum ==
@@ -125,7 +125,7 @@ function removeTemporaries {
         # existing == false, but we need to keep whatever images we have.
         else
 
-            if [[ $forum == true ]]; then
+            if ((forum)); then
                 moveTo $smallimagelocation $working_dir
             fi
             # Regardless of the thumbnail, we still need to move the regular
@@ -153,7 +153,7 @@ function sendOutput {
     echo "$datestamp: $largeimageurl $largeimagedel\
  $smallimageurl $smallimagedel" >> "$logdestfile"
 
-    if [[ $forum == true ]]; then
+    if ((forum)); then
         echo "[url=$largeimageurl][img]$smallimageurl[/img][/url]"
     else
         # The prefix is equal to '' if it was not changed by the user.
@@ -181,13 +181,13 @@ function parseAndReturn {
     local url_length="${#url}"
     (( url_length != 28))  && die "url too large or equal to zero"
 
-    if [[ $firstdone == false ]]; then
-        largeimageurl="$url"
-        largeimagedel="$del"
-        firstdone=true
-    else
+    if ((firstdone)); then
         smallimageurl="$url"
         smallimagedel="$del"
+    else
+        largeimageurl="$url"
+        largeimagedel="$del"
+        firstdone=1
     fi
 
 }
@@ -199,8 +199,8 @@ function makeImageUpload {
 }
 
 function checkAndMakeThumb {
-    if [[ $forum == true ]]; then
-        if [[ $download == true || $existing == true ]]; then
+    if ((forum)); then
+        if ((download || existing)); then
             cp "$largeimagelocation" "$smallimagelocation"
             mogrify -path "$location" -resize 250x250 "$smallimagelocation"
         fi
@@ -215,11 +215,11 @@ function takeShot {
     largeimagelocation="$location/$datestamp.$extension"
     smallimagelocation="$location/$datestamp-thumb.$extension"
 
-    if [[ $download == false && $existing == false ]]; then
+    if ! ((download || existing)); then
         scrot $selectioncommand "$largeimagelocation" $thumbcommand
-    elif [[ $download == true ]]; then
+    elif ((download)); then
         curl "$dl_source" -o "$largeimagelocation" > /dev/null 2>&1
-    elif [[ $existing == true ]]; then
+    elif ((existing)); then
         largeimagelocation="$ex_source"
     fi
 
@@ -236,7 +236,7 @@ while :
 do
     case $1 in
         -f | --forum)
-            forum=true
+            forum=1
             thumbcommand='--thumb 20'
             shift
             ;;
@@ -245,17 +245,17 @@ do
             shift
             ;;
         -k | --keep)
-            keep=true
+            keep=1
             shift
             ;;
         -u | --url)
-            download=true
+            download=1
             dl_source="$2"
             setExtension "$dl_source"
             shift 2
             ;;
         -e | --existing)
-            existing=true
+            existing=1
             ex_source="$2"
             setExtension "$ex_source"
             shift 2
