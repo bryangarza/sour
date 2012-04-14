@@ -55,7 +55,6 @@ setDefaults() {
     smallimagedel=''
 
     firstdone=0
-    cleanupneeded=0
 }
 
 # Files and directories needed for successful execution:
@@ -108,26 +107,24 @@ moveTo() {
 }
 
 removeTemporaries() {
-    if ((cleanupneeded)); then
-        if ((keep)); then
-            if ((existing)); then
-                if ((forum)); then
-                    moveTo "$smallimagelocation" "$working_dir"
-                fi
-
-            # existing == false, and keep any images created
-            else
-                if ((forum)); then
-                    moveTo "$smallimagelocation" "$working_dir"
-                fi
-                # Still need to move the regular image:
-                moveTo "$largeimagelocation" "$working_dir"
+    if ((keep)); then
+        if ((existing)); then
+            if ((forum)); then
+                moveTo "$smallimagelocation" "$working_dir"
             fi
 
-        # keep == false, remove everything
+        # existing == false, and keep any images created
         else
-            rm --force --recursive "$location"
+            if ((forum)); then
+                moveTo "$smallimagelocation" "$working_dir"
+            fi
+            # Still need to move the regular image:
+            moveTo "$largeimagelocation" "$working_dir"
         fi
+
+    # keep == false, remove everything
+    else
+        rm --force --recursive "$location"
     fi
 }
 
@@ -216,7 +213,6 @@ takeShot() {
     fi
 
     setTraps
-    cleanupneeded=1
 }
 
 setExtension() {
