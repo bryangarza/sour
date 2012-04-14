@@ -55,6 +55,7 @@ setDefaults() {
     smallimagedel=''
 
     firstdone=0
+    cleanupneeded=0
 }
 
 # Files and directories needed for successful execution:
@@ -68,8 +69,7 @@ createNeededFiles() {
     for directory in "${needed_dirs[@]}"; do
         if [[ ! -d "$directory" ]]; then
             if ! mkdir "$directory" > /dev/null 2>&1; then
-                echo "ERROR: could not create directory $directory" >&2
-                exit 1
+                die "could not create directory $directory"
             fi
         fi
     done
@@ -77,8 +77,7 @@ createNeededFiles() {
     for file in "${needed_files[@]}"; do
         if [[ ! -e "$file" ]]; then
             if ! touch "$file" > /dev/null 2>&1; then
-                echo "ERROR: could not create $file" >&2
-                exit 1
+                die "could not create $file"
             fi
         fi
     done
@@ -102,39 +101,33 @@ moveTo() {
                 echo "failed to move $file to $dest...sending to $HOME" >&2
                 moveTo $file $HOME
             else
-                die "ERROR: failed to move $file to $dest"
+                die "failed to move $file to $dest"
             fi
         fi
     fi
 }
 
 removeTemporaries() {
-    if ((keep)); then
-        if ((existing)); then
+    if ((cleanupneeded)); then
+        if ((keep)); then
+            if ((existing)); then
+                if ((forum)); then
+                    moveTo "$smallimagelocation" "$working_dir"
+                fi
 
-            if ((forum)); then
-                moveTo "$smallimagelocation" "$working_dir"
+            # existing == false, and keep any images created
             else
-                # If the if keep == true, existing == true, and forum ==
-                # false, that means that the only image that was used was not
-                # created by the program, but already existed, so we leave it.
-                :
+                if ((forum)); then
+                    moveTo "$smallimagelocation" "$working_dir"
+                fi
+                # Still need to move the regular image:
+                moveTo "$largeimagelocation" "$working_dir"
             fi
 
-        # existing == false, but we need to keep whatever images we have.
+        # keep == false, remove everything
         else
-
-            if ((forum)); then
-                moveTo "$smallimagelocation" "$working_dir"
-            fi
-            # Regardless of the thumbnail, we still need to move the regular
-            # image
-            moveTo "$largeimagelocation" "$working_dir"
+            rm --force --recursive "$location"
         fi
-
-    # keep == false, remove everything
-    else
-        rm --force --recursive "$location"
     fi
 }
 
@@ -143,7 +136,7 @@ setTraps() {
 }
 
 die() {
-    echo -e "ERROR: $@\a" >&2
+    echo "ERROR: $@" >&2
     echo '' | xclip
     exit 1
 }
@@ -223,6 +216,7 @@ takeShot() {
     fi
 
     setTraps
+    cleanupneeded=1
 }
 
 setExtension() {
