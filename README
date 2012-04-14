@@ -1,42 +1,59 @@
-sour
+                                    sour
 
-sour is a script that automates uploading of screenshots,
-    making uploading of screenshots seamless and painless.
+What is it?
+-----------
 
-setup (AUR):
-    - https://aur.archlinux.org/packages.php?ID=58453
+Sour is a script that automates the uploading of screenshots. Not only can it
+upload screenshots, but it can also generate thumbnails and output BBCode. Sour
+can also use a URL or a filepath as its upload source.
 
-setup (from source):
-    - clone this repo into ~/.sour:
-        `git clone git://github.com/wolfcore/sour.git ~/.sour`
-    - sour attempts to recreate missing files -- so if you accidentally delete
-      ~/.sour/key, don't worry, just run sour once and it'll fix itself
 
-sour: usage:
+Setup
+-----
 
-    -h | --help              help
-    -s | --select            select area (does scrot -s)
-    -f | --forum             also make thumbnail, output with BBCode 
-    -k | --keep              keep images when done, don't remove
-    -u | --url {URL}         don't scrot; download {URL} instead
-    -e | --existing {PATH}   don't scrot; use image in {PATH}
-    -p | --prefix "MSG: "    result is "MSG: URL" (not compatible with -t or -f)
+Using the AUR: https://aur.archlinux.org/packages.php?ID=58453
 
-    - options must be used separately (i.e.: "-s -f", not "-sf")
-    - when using an existing image, it won't be removed regardless of your
-        usage of --keep (thumbnails do get removed unless you use -k or --keep)
+From source: `git clone git://github.com/wolfcore/sour.git ~/.sour`
 
-log:
-    - you can find all past URLs and their deletion URLs in the log directory.
+Usage
+-----
 
-key:
-    -you can register for your own key at http://imgur.com/register/api_anon
-        (don't forget to edit .sour/key!)
+Consult `sour --help` for command-line options.
 
-depends:
-    - curl
-    - scrot
-    - imagemagick
+Logs
+----
 
-author:
-    wolfcore <brygarza@gmail.com>
+A history of all past uploads and their respective deletion URLs can be found
+in ~/.sour/log/. Log files are organized by date.
+
+API Key
+-------
+
+You can register for your own imgur API key at
+http://imgur.com/register/api_anon, then edit ~/.sour/key.
+
+To reset your key, delete ~/.sour/key and sour will restore the file.
+
+Depends
+-------
+
+- curl
+- scrot
+- imagemagick
+
+Licensing
+--------
+
+Please see the file called LICENSE.
+
+Discussion
+----------
+
+Discuss sour and its development at
+https://bbs.archlinux.org/viewtopic.php?id=139252.
+
+
+Reporting Bugs
+--------------
+
+Please report all bugs to wolfcore <brygarza@gmail.com>
