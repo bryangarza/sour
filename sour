@@ -67,7 +67,7 @@ setDefaults() {
 createNeededFiles() {
     for directory in "${needed_dirs[@]}"; do
         if [[ ! -d "$directory" ]]; then
-            if ! mkdir "$directory" &> /dev/null; then
+            if ! mkdir "$directory" > /dev/null 2>&1; then
                 echo "ERROR: could not create directory $directory" >&2
                 exit 1
             fi
@@ -76,7 +76,7 @@ createNeededFiles() {
 
     for file in "${needed_files[@]}"; do
         if [[ ! -e "$file" ]]; then
-            if ! touch "$file" &> /dev/null; then
+            if ! touch "$file" > /dev/null 2>&1; then
                 echo "ERROR: could not create $file" >&2
                 exit 1
             fi
@@ -96,7 +96,7 @@ moveTo() {
 
     # checking that the file exists before moving
     if [[ -e "$file" ]]; then
-        if ! mv "$file" "$dest" &> /dev/null; then
+        if ! mv "$file" "$dest" > /dev/null 2>&1; then
             # Try sending the file to home dir.
             if [[ ! $dest == $HOME ]]; then
                 echo "failed to move $file to $dest...sending to $HOME" >&2
