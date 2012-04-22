@@ -3,18 +3,13 @@
 usage() {
 cat <<EOF
 sour: usage:
-
-    -h | --help              help
-    -s | --select            select area (does scrot -s)
-    -f | --forum             also make thumbnail, output with BBCode 
-    -k | --keep              keep images when done, don't remove
-    -u | --url {URL}         don't scrot; download {URL} instead
-    -e | --existing {PATH}   don't scrot; use image in {PATH}
-    -p | --prefix "MSG: "    result is "MSG: URL" (not compatible with -t or -f)
-
-    - options must be used separately (i.e.: "-s -f", not "-sf")
-    - when using an existing image, it won't be removed regardless of your
-        usage of --keep (thumbnails do get removed unless you use -k or --keep)
+    -h, --help  print this message
+    -s          select area (does scrot -s)
+    -f          forum output (thumbnail and BBCode)
+    -k          keep images when done (sent to current directory)
+    -u {URL}    don't scrot; use {URL} as image
+    -e {PATH}   don't scrot; use {PATH} as image
+    -p "MSG: "  prefix output ("MSG: URL")
 EOF
 }
 
@@ -24,11 +19,11 @@ if [[ $1 == '-h' || $1 == '--help' || $1 == '-?' ]]; then
 fi
 
 setDefaults() {
+    # locations
     TMPDIR=${TMPDIR:-/tmp}
     location=$(mktemp -d "$TMPDIR/XXXXXXXXXXXXXX") ||\
         { echo "ERROR could not create temporary directory" >&2; exit 1; }
     working_dir="$PWD"
-
     logdestfile="$HOME/.sour/log/$(date +"%m-%d-%y").log"
     keyfile="$HOME/.sour/key"
     datestamp="$(date +"%F_%H-%M-%S")"
@@ -38,6 +33,7 @@ setDefaults() {
     needed_dirs=("$HOME/.sour" "$HOME/.sour/log")
     default_key='https://raw.github.com/wolfcore/sour/master/key'
 
+    # for user options
     thumbcommand=''
     selectioncommand=''
     forum=0
@@ -48,13 +44,16 @@ setDefaults() {
     # this will be changed depending on if there is a download or use of an
     # existing image
     extension='png'
+
     prefix=''
     largeimageurl=''
     largeimagedel=''
     smallimageurl=''
     smallimagedel=''
 
+    # internal
     firstdone=0
+    OPTIND=1
 }
 
 # Files and directories needed for successful execution:
@@ -221,50 +220,43 @@ setExtension() {
 
 setDefaults
 
-while :
-do
-    case $1 in
-        -f | --forum)
+while getopts ":fsku:e:p:" opt; do
+    case "$opt" in
+        f)
             forum=1
             thumbcommand='--thumb 20'
-            shift
             ;;
-        -s | --select)
+        s)
             selectioncommand='--select'
-            shift
             ;;
-        -k | --keep)
+        k)
             keep=1
-            shift
             ;;
-        -u | --url)
+        u)
             download=1
-            dl_source="$2"
+            dl_source="$OPTARG"
             setExtension "$dl_source"
-            shift 2
             ;;
-        -e | --existing)
+        e)
             existing=1
-            ex_source="$2"
+            ex_source="$OPTARG"
             setExtension "$ex_source"
-            shift 2
             ;;
-        -p | --prefix)
-            prefix="$2"
-            shift
+        p)
+            prefix="$OPTARG"
             ;;
-        --) shift
-            break
+        \?)
+            die "Invalid option '-$OPTARG'"
             ;;
-        -*) echo -e "unknown option: $1\n" >&2
-            usage
-            exit 1
-            shift
-            ;;
-        *) break
+        :)
+            die "Option '-$OPTARG' requires an argument."
             ;;
     esac
 done
+
+shift $((OPTIND-1))
+
+[[ "$1" = "--" ]] && shift
 
 createNeededFiles
 takeShot
