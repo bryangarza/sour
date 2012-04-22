@@ -9,7 +9,7 @@ sour: usage:
     -k          keep images when done (sent to current directory)
     -u {URL}    don't scrot; use {URL} as image
     -e {PATH}   don't scrot; use {PATH} as image
-    -p "MSG: "  prefix output ("MSG: URL")
+    -p {MSG}    prefix output with {MSG}
 EOF
 }
 
@@ -142,7 +142,7 @@ sendOutput() {
  $smallimageurl $smallimagedel" >> "$logdestfile"
 
     if ((forum)); then
-        echo "[url=$largeimageurl][img]$smallimageurl[/img][/url]"
+        echo "${prefix}[url=$largeimageurl][img]$smallimageurl[/img][/url]"
     else
         # The prefix is equal to '' if it was not changed by the user.
         echo "${prefix}${largeimageurl}"
