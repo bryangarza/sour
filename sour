@@ -84,7 +84,7 @@ setDefaults() {
 createNeededFiles() {
     for directory in "${needed_dirs[@]}"; do
         if [[ ! -d "$directory" ]]; then
-            if ! mkdir "$directory" > /dev/null 2>&1; then
+            if ! mkdir -p "$directory" > /dev/null 2>&1; then
                 die "could not create directory $directory"
             fi
         fi
