@@ -3,13 +3,19 @@
 usage() {
 cat <<EOF
 sour: usage:
+
+  general:
     -h, --help  print this message
-    -s          select area (does scrot -s)
     -f          forum output (thumbnail and BBCode)
     -k          keep images when done (sent to current directory)
-    -u {URL}    don't scrot; use {URL} as image
-    -e {PATH}   don't scrot; use {PATH} as image
-    -p {MSG}    prefix output with {MSG}
+    -u URL      don't scrot; use URL as image
+    -e PATH     don't scrot; use PATH as image
+    -p MSG      prefix output with MSG
+
+  scrot-specific:
+    -c          show a countdown before taking the shot
+    -d NUM      wait NUM seconds before taking a shot
+    -s          interactively choose a window or rectangle with the mouse
 EOF
 }
 
@@ -34,8 +40,9 @@ setDefaults() {
     default_key='https://raw.github.com/wolfcore/sour/master/key'
 
     # for user options
-    thumbcommand=''
-    selectioncommand=''
+    scrotcmd=''
+    #thumbcommand=''
+    #selectioncommand=''
     forum=0
     keep=0
     download=0
@@ -204,7 +211,7 @@ takeShot() {
     smallimagelocation="$location/$datestamp-thumb.$extension"
 
     if ! ((download || existing)); then
-        scrot $selectioncommand "$largeimagelocation" $thumbcommand
+        scrot $scrotcmd "$largeimagelocation"
     elif ((download)); then
         curl "$dl_source" -o "$largeimagelocation" > /dev/null 2>&1
     elif ((existing)); then
@@ -220,14 +227,20 @@ setExtension() {
 
 setDefaults
 
-while getopts ":fsku:e:p:" opt; do
+while getopts ":fscd:ku:e:p:" opt; do
     case "$opt" in
         f)
             forum=1
-            thumbcommand='--thumb 20'
+            scrotcmd="$scrotcmd --thumb 20"
             ;;
         s)
-            selectioncommand='--select'
+            scrotcmd="$scrotcmd --select"
+            ;;
+        c)
+            scrotcmd="$scrotcmd --count"
+            ;;
+        d)
+            scrotcmd="$scrotcmd --delay $OPTARG"
             ;;
         k)
             keep=1
