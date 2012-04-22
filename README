@@ -24,15 +24,19 @@ Logs
 ----
 
 A history of all past uploads and their respective deletion URLs can be found
-in ~/.sour/log/. Log files are organized by date.
+in ~/.sour/log/ (by default). Log files are organized by date.
 
 API Key
 -------
 
 You can register for your own imgur API key at
-http://imgur.com/register/api_anon, then edit ~/.sour/key.
+http://imgur.com/register/api_anon.
 
-To reset your key, delete ~/.sour/key and sour will restore the file.
+rcfile
+------
+
+Change default key, -k directory, and log directory.
+See the file called .sourrc 
 
 Depends
 -------
