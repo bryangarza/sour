@@ -1,0 +1,14 @@
+# This is a sample ~/.sourrc file
+#
+
+# Add your own (anonymous) imgur API key here
+# Default key is built-in
+#key=''
+
+# The directory where screenshots are placed when using -k
+# Default: working directory
+#screenshot_dir="$HOME/path/to/dir"
+
+# The directory where log files are stored
+# Default: ~/.sour/log
+#log_dir="$HOME/path/to/dir"
