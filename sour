@@ -25,10 +25,50 @@ if [[ $1 == '-h' || $1 == '--help' || $1 == '-?' ]]; then
 fi
 
 setDefaults() {
-    # locations
-    TMPDIR=${TMPDIR:-/tmp}
-    location=$(mktemp -d "$TMPDIR/XXXXXXXXXXXXXX") ||\
-        { die "could not create temporary directory within /tmp"; }
+    # for user options
+    prefix=''
+    scrotcmd=''
+    forum=0
+    keep=0
+    download=0
+    existing=0
+
+    # this will be changed depending on if there is a download or use of an
+    # existing image
+    extension='png'
+
+    largeimageurl=''
+    largeimagedel=''
+    smallimageurl=''
+    smallimagedel=''
+
+    # internal
+    firstdone=0
+    # Require temporary directories and files
+    tmpreq=0
+    # Require screenshot (as opposed to url/existing)
+    shotreq=1
+    # POSIX variable (getopts)
+    OPTIND=1
+
+}
+
+# Files and directories needed for successful execution (if defaults are
+# unaltered)
+#   - .sour/
+#   - .sour/log/
+#   - .sour/key
+#   - .sour/log/(datestamp).log
+
+# Creating directories before populating with needed_files.
+createNeededFiles() {
+    if ((tmpreq)); then
+        TMPDIR=${TMPDIR:-/tmp}
+        if ! location=$(mktemp -d "$TMPDIR/XXXXXXXXXXXXXX"); then
+            die "could not create temporary directory within /tmp"
+        fi
+    fi
+
     rcfile="$HOME/.sourrc"
 
     datestamp="$(date +"%F_%H-%M-%S")"
@@ -50,38 +90,6 @@ setDefaults() {
     needed_files=("$logdestfile")
     needed_dirs=("$log_dir" $screenshot_dir)
 
-    # for user options
-    scrotcmd=''
-    forum=0
-    keep=0
-    download=0
-    existing=0
-
-    # this will be changed depending on if there is a download or use of an
-    # existing image
-    extension='png'
-
-    prefix=''
-    largeimageurl=''
-    largeimagedel=''
-    smallimageurl=''
-    smallimagedel=''
-
-    # internal
-    firstdone=0
-    # POSIX variable (getopts)
-    OPTIND=1
-
-}
-
-# Files and directories needed for successful execution:
-#   - .sour/
-#   - .sour/log/
-#   - .sour/key
-#   - .sour/log/(datestamp).log
-
-# Creating directories before populating with needed_files.
-createNeededFiles() {
     for directory in "${needed_dirs[@]}"; do
         if [[ ! -d "$directory" ]]; then
             if ! mkdir -p "$directory" > /dev/null 2>&1; then
@@ -118,24 +126,27 @@ moveTo() {
 }
 
 removeTemporaries() {
-    if ((keep)); then
-        if ((existing)); then
-            if ((forum)); then
-                moveTo "$smallimagelocation" "$screenshot_dir"
+    # If temporaries were required:
+    if ((tmpreq)); then
+        if ((keep)); then
+            if ((existing)); then
+                if ((forum)); then
+                    moveTo "$smallimagelocation" "$screenshot_dir"
+                fi
+
+            # existing == false, and keep any images created
+            else
+                if ((forum)); then
+                    moveTo "$smallimagelocation" "$screenshot_dir"
+                fi
+                # Still need to move the regular image:
+                moveTo "$largeimagelocation" "$screenshot_dir"
             fi
 
-        # existing == false, and keep any images created
+        # keep == false, remove everything
         else
-            if ((forum)); then
-                moveTo "$smallimagelocation" "$screenshot_dir"
-            fi
-            # Still need to move the regular image:
-            moveTo "$largeimagelocation" "$screenshot_dir"
+            rm --force --recursive "$location"
         fi
-
-    # keep == false, remove everything
-    else
-        rm --force --recursive "$location"
     fi
 }
 
@@ -168,6 +179,10 @@ uploadFile() {
     curl -s -F "image=@$1" -F "key=$key" http://imgur.com/api/upload.xml
 }
 
+uploadUrl() {
+    curl -s -d "image=$1" -d "key=$key" http://imgur.com/api/upload.xml
+}
+
 parseAndReturn() {
     local resp="$@"
 
@@ -193,7 +208,12 @@ parseAndReturn() {
 }
     
 makeImageUpload() {
-    largeimageresponse=$(uploadFile "$largeimagelocation")
+    if ((download)); then
+        largeimageresponse=$(uploadUrl "$dl_source")
+    else
+        largeimageresponse=$(uploadFile "$largeimagelocation")
+    fi
+
     if [[ $largeimageresponse = *error* ]]; then
         if [[ $largeimageresponse = *1004* ]]; then
             non_fatal "Key defined in $rcfile is invalid... using default_key"
@@ -204,7 +224,6 @@ makeImageUpload() {
         fi
     fi
     parseAndReturn "$largeimageresponse"
-    checkAndMakeThumb
 }
 
 checkAndMakeThumb() {
@@ -226,8 +245,12 @@ takeShot() {
 
     if ! ((download || existing)); then
         scrot $scrotcmd "$largeimagelocation"
+    # if using url as source, and do not need a thumbnail or keep, just upload
+    # using the url
     elif ((download)); then
-        curl "$dl_source" -o "$largeimagelocation" > /dev/null 2>&1
+        if ((forum || keep)); then
+            curl "$dl_source" -o "$largeimagelocation" > /dev/null 2>&1
+        fi
     elif ((existing)); then
         largeimagelocation="$ex_source"
     fi
@@ -245,6 +268,7 @@ while getopts ":fscd:ku:e:p:" opt; do
     case "$opt" in
         f)
             forum=1
+            tmpreq=1
             scrotcmd="$scrotcmd --thumb 20"
             ;;
         s)
@@ -258,14 +282,17 @@ while getopts ":fscd:ku:e:p:" opt; do
             ;;
         k)
             keep=1
+            tmpreq=1
             ;;
         u)
             download=1
+            shotreq=0
             dl_source="$OPTARG"
             setExtension "$dl_source"
             ;;
         e)
             existing=1
+            shotreq=0
             ex_source="$OPTARG"
             setExtension "$ex_source"
             ;;
@@ -285,7 +312,13 @@ shift $((OPTIND-1))
 
 [[ "$1" = "--" ]] && shift
 
+# If taking screenshot, require temporary directory
+if ((shotreq)); then
+    tmpreq=1
+fi
+
 createNeededFiles
 takeShot
 makeImageUpload
+checkAndMakeThumb
 sendOutput
