@@ -3,10 +3,9 @@
 What is it?
 -----------
 
-Sour is a script that automates the uploading of screenshots, via imgur's
-anonymous API. sour can generate thumbnails, use existing images or URLs to
-replace the screenshot, and is very fast. This script with forums in mind,
-capable of outputting BBCode. 
+Sour is a script that automates the uploading of screenshots via imgur's
+anonymous API. sour can generate thumbnails and output BBCode. It is also
+possible to use an existing image or a URL as the input.
 
 Setup
 -----
