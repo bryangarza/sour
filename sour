@@ -194,18 +194,18 @@ sendOutput() {
 }
 
 uploadFile() {
-    curl -s -F "image=@$1" -F "key=$key" http://imgur.com/api/upload.xml
+    curl -s -F "image=@$1" -F "key=$key" http://api.imgur.com/2/upload.xml
 }
 
 uploadUrl() {
-    curl -s -d "image=$1" -d "key=$key" http://imgur.com/api/upload.xml
+    curl -s -d "image=$1" -d "key=$key" http://api.imgur.com/2/upload.xml
 }
 
 parseAndReturn() {
     local resp="$@"
 
-    local url=${resp#*<original_image>}
-    url=${url%</original_image>*}
+    local url=${resp#*<original>}
+    url=${url%</original>*}
     
     local del=${resp#*<delete_page>}
     del=${del%</delete_page>*}
