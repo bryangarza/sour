@@ -1,4 +1,7 @@
                                     sour
+                                    
+(!): Sour is now broken -- Imgur has changed their API. Feel free to fork and
+make the necessary changes.
 
 What is it?
 -----------
